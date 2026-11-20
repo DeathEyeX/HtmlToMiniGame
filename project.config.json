@@ -40,14 +40,6 @@
         "type": "folder"
       },
       {
-        "value": "dist/draco-test.bundle.js",
-        "type": "file"
-      },
-      {
-        "value": "dist/meta.json",
-        "type": "file"
-      },
-      {
         "value": "tsconfig.json",
         "type": "file"
       },

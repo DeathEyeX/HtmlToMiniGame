@@ -136,6 +136,15 @@ function downloadFile(url, onProgress) {
   });
 }
 
+/**
+ * @param {{
+ *   url: string,
+ *   cacheKey?: string,
+ *   version?: string,
+ *   onProgress?: (info: {progress: number, fromCache?: boolean, totalBytesWritten?: number, totalBytesExpectedToWrite?: number}) => void
+ * }} options
+ * @returns {Promise<ArrayBuffer>}
+ */
 export async function loadRemoteGLB(options) {
   const {
     url,

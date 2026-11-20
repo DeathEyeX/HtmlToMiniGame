@@ -6,6 +6,7 @@
     "moduleResolution": "Bundler",
     "types": ["minigame-api-typings"],
     "strict": true,
+    "allowJs": true,
     "noEmit": true,
     "skipLibCheck": true
   },

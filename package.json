@@ -5,8 +5,9 @@
   "main": "game.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "npm run typecheck && esbuild src/main.ts --bundle --minify --platform=browser --format=iife --target=es2019 --define:performance=globalThis.performance --outfile=dist/game.bundle.js",
-    "build:model": "npm run typecheck && esbuild src/three-test.js --bundle --minify --platform=browser --format=iife --target=es2019 --define:performance=globalThis.performance --external:fs --external:path --outfile=dist/game.bundle.js",
+    "build": "npm run typecheck && npm run bundle -- --define:MODEL_DEMO=false",
+    "build:model": "npm run typecheck && npm run bundle -- --define:MODEL_DEMO=true",
+    "bundle": "esbuild src/main.ts --bundle --minify --platform=browser --format=iife --target=es2019 --define:performance=globalThis.performance --external:fs --external:path --outfile=dist/game.bundle.js",
     "test": "node --test tests/*.test.cjs"
   },
   "keywords": [],
@@ -14,11 +15,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "draco3d": "^1.5.9",
     "pixi.js": "^8.23.0",
-    "three": "^0.185.1",
-    "three-platformize": "^1.133.3",
-    "threejs-miniprogram-adapter": "github:Boen36/threejs-miniprogram-adapter"
+    "three-platformize": "^1.133.3"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

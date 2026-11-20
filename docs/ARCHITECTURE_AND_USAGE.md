@@ -1,10 +1,10 @@
 # PixiWechatTest 架构与使用指南
 
-核对日期为 2026-11-20。这里描述当前工程的两个构建入口、平台适配、UI 扩展和验收流程。[历史问题、迁移过程及详细任务拆分](PROJECT_STATUS_AND_AGENT_HANDOFF.md)
+核对日期为 2026-11-20。这里描述当前工程的 TypeScript 入口、两个构建模式、平台适配、UI 扩展和验收流程。[迁移过程及任务拆分](PROJECT_STATUS_AND_AGENT_HANDOFF.md) · [QA 与故障处理记录](QA.md)
 
 ## 1. 当前基线
 
-工程使用 TypeScript 开发共享平台层、Pixi HUD 和程序化场景，使用 esbuild 生成 ES2019 IIFE。3D 采用 `three-platformize@1.133.3` 与 WebGL1，2D 采用 `pixi.js@8.23.0` 的 Graphics 和 Container。模型演示入口和现有 GLB／Draco 实现仍是 JavaScript。微信入口 `game.js` 只加载 `dist/game.bundle.js`。
+工程唯一框架入口为 `src/main.ts`，使用 esbuild 生成 ES2019 IIFE。3D 采用 `three-platformize@1.133.3` 与 WebGL1，2D 采用 `pixi.js@8.23.0` 的 Graphics 和 Container。TypeScript 负责应用启动、两个场景、平台层及 HUD，现有 GLB 资源、Draco 和材质模块由场景调用。微信要求的 `game.js` 加载 `dist/game.bundle.js`。
 
 | 用途 | 命令 | 运行结果 | 资源依赖 |
 | --- | --- | --- | --- |
@@ -13,19 +13,19 @@
 | 静态检查 | `npm.cmd run typecheck` | TypeScript 严格类型检查 | 覆盖 `src/**/*.ts` |
 | 自动回归 | `npm.cmd test` | 微信运行时全局兼容、真实 OrbitControls 和触摸捕获测试 | 本地 Node 与已安装依赖 |
 
-两个构建写入同一个 `dist/game.bundle.js`。微信工具始终运行最后一次构建的模式。当前磁盘 bundle 与模型模式重建结果逐字节一致。审查时按两条命令的配置在内存重建，最小模式为 1,044,390 字节，模型模式为 1,753,756 字节，均通过 ES2019 语法解析。这些是 JS 文件大小，实际预览包大小以微信开发者工具为准。
+两个构建共用 `bundle` 脚本，以构建期常量 `MODEL_DEMO` 选择模式，写入同一个 `dist/game.bundle.js`。微信工具运行最后一次构建的模式。最小模式为 1,044,765 字节，模型模式为 1,752,843 字节，均通过 ES2019 语法解析。依赖图确认最小包未纳入模型、资源加载器或 Draco。实际预览包大小以微信开发者工具为准。
 
 ## 2. 运行架构
 
 ```text
-npm run build       → src/main.ts（立方体）
-npm run build:model → src/three-test.js（Littlest Tokyo）
+npm run build       → MODEL_DEMO=false
+npm run build:model → MODEL_DEMO=true
                            ↓
-                    esbuild → dist/game.bundle.js ← game.js
+              src/main.ts → esbuild → dist/game.bundle.js ← game.js
                            ↓
                   wx.createCanvas → WechatPlatform
                            ↓
-              Three 场景 / 相机 / OrbitControls
+   立方体 / LittlestTokyo.ts → Three 场景 / 相机 / OrbitControls
                            ↓
            同一上屏 Canvas 和同一 WebGL1 上下文
                            ↓
@@ -38,9 +38,9 @@ wx.downloadFile / 版本缓存 → ArrayBuffer → GLTFLoader.parse
 
 | 模块 | 职责与依赖 |
 | --- | --- |
-| `game.js`、`game.json`、`project.config.json` | 微信入口、竖屏、小游戏项目和打包规则。保持 `es6: false`，由 esbuild 提供兼容语法。源码、测试、文档和既有的 Draco/WASM 实验产物由打包规则排除。 |
-| `src/main.ts` | 程序化立方体、场景、相机、RAF、窗口尺寸及前后台。用于快速验证框架启动，便于区分渲染错误和远程资源错误。 |
-| `src/three-test.js` | 真实模型联调。持有模型 URL、版本、相机、灯光、渲染循环与动画。创建场景后并行初始化 HUD 和加载模型，共用相同输入路由。 |
+| `game.js`、`game.json`、`project.config.json` | 微信入口、竖屏、小游戏项目和打包规则。保持 `es6: false`，由 esbuild 提供兼容语法。源码、测试、文档和归档的 `libs/` 由打包规则排除。 |
+| `src/main.ts` | 唯一 TypeScript 入口，注册平台，持有 Canvas、渲染器、RAF、尺寸与前后台处理。按构建模式生成程序化立方体或创建模型场景，然后挂载 HUD。 |
+| `src/scenes/LittlestTokyo.ts` | 模型联调模块，持有资源 URL、版本、相机、灯光和 AnimationMixer，通过 `update(delta)` 接入共享帧循环。模型下载与 HUD 初始化分开，进度与错误进入控制台。 |
 | `src/platform/WechatPlatform.ts` | 继承已验证的 `WechatGamePlatform`。沿用其微信原生触摸订阅，仅在手势开始时询问 HUD 是否接管按钮、开关、滑块或拖动把手。起点在场景的手势走原 OrbitControls。 |
 | `src/ui/loadHud.ts` | 在延迟加载 Pixi 之前补齐缺失的 `navigator` 和 `performance.now()`。构建把 Pixi 的裸 `performance` 引用映射到 `globalThis.performance`。 |
 | `src/ui/PixiHud.ts` | 配置微信 Canvas 适配，使用 Pixi 的静态代码兼容模块。通过 `beginGesture` 提供控件命中，返回 `move / release / cancel`。矩形、色条及数字由矢量 Graphics 生成，面板位置和缩放由 Container 管理。 |
@@ -66,7 +66,7 @@ npm.cmd run build
 1. 在微信开发者工具导入该工程根目录，使用小游戏模式和有项目权限的微信账号。启动后点击「编译」验证立方体和面板。
 2. 如果新编译后所有模拟器输入都失效，关闭当前工程窗口并重新打开同一项目。在 Stable 1.06.2402030 的既有异常会话中已经用同一业务包做过对照，重开恢复了点击和拖动。
 
-锁文件含 GitHub Git 依赖。新的开发机执行 `npm ci` 时需要能访问配置的 npm 源和 GitHub。审查环境使用 Node 22.18.0 和 npm 11.5.2。
+新的开发机执行 `npm ci` 时需要能访问配置的 npm 源或有完整本地缓存。审查环境使用 Node 22.18.0 和 npm 11.5.2。
 
 ### 3.2 启动模型联调
 
@@ -77,7 +77,7 @@ Set-Location 'D:\Project\Web\ThreeJsTest'
 python -m http.server 8080 --bind 0.0.0.0 --directory '.\WechatAssetServer'
 ```
 
-确认该目录下有 `model.glb`。现有资源与网页原型的 `littlest-tokyo-vite/public/models/LittlestTokyo.glb` 字节相同。用 `ipconfig` 核对手机可达的网卡 IP，必要时更新 `src/three-test.js` 中的 `CONFIG.modelURL`。当前配置为 `http://192.168.1.46:8080/model.glb`。换模型或换资源来源时一起更新 `modelVersion`，以便重新下载。
+确认该目录下有 `model.glb`。现有资源与网页原型的 `littlest-tokyo-vite/public/models/LittlestTokyo.glb` 字节相同。用 `ipconfig` 核对手机可达的网卡 IP，必要时更新 `src/scenes/LittlestTokyo.ts` 中的 `CONFIG.modelURL`。当前配置为 `http://192.168.1.46:8080/model.glb`。换模型或换资源来源时一起更新 `modelVersion`，以便重新下载。
 
 ```powershell
 Set-Location 'D:\Project\Web\ThreeJsTest\PixiWechatTest'
@@ -107,9 +107,9 @@ npm.cmd run build:model
 | 拖动与命中 | 拖动顶部双线把手，面板与所有子控件一起移动。放下后在新位置点击 `+`，计数继续增加。 |
 | 3D 输入隔离 | 在面板外开始拖动，模型视角旋转，面板位置与计数保持原样。 |
 
-开发者已确认上述操作通过，当前记录未附设备型号和基础库版本。此前模拟器已观察到开关、计数、滑块透明度和整块面板移动。审查时重新执行了 6 项自动回归及类型检查。自动化覆盖启动适配和输入路由，实际 GPU 画面、设备差异及生命周期仍依赖界面验收。
+统一入口前，开发者已确认上述操作通过，当前记录未附完整设备信息。此前模拟器已观察到开关、计数、滑块透明度和整块面板移动。本轮 6 项自动回归、类型检查和两种构建通过。统一入口后的实际 GPU 画面、设备差异与生命周期由开发者按表复测。
 
-新增控件时在 HUD 内定义视觉、命中区域和状态更新，保持模型或业务逻辑通过明确动作调用。单击动作在 `release` 内提交，拖动控件在 `move` 内更新，取消时恢复临时交互状态。新增关卡可先接入原有模型联调入口，共用平台、HUD 与资源能力，再逐步将业务入口迁移到 TypeScript。
+新增控件时在 HUD 内定义视觉、命中区域和状态更新，单击动作在 `release` 内提交，拖动控件在 `move` 内更新，取消时恢复临时交互状态。新增关卡可参照 `src/scenes/LittlestTokyo.ts` 提供相机、控制器和更新函数，在 `src/main.ts` 选择要运行的场景，复用平台、RAF、HUD 与资源模块。
 
 ## 5. 审查结论与下一阶段
 
@@ -119,6 +119,6 @@ npm.cmd run build:model
 | --- | --- | --- |
 | 1 | 固定可复现基线 | 审核并提交现有入口、平台、HUD、资源、Draco 工厂、测试和锁文件。明确产物入库策略，记录构建模式和通过验收的环境。 |
 | 2 | 收口模型加载失败 | 已用合法 GLB 容器和损坏 Draco 片段复现解码 Promise 被拒绝、`GLTFLoader.parse` 回调悬挂。需要接通错误传播和有界等待，提供可见错误／重试，并明确失效缓存何时清除。 |
-| 3 | 统一两个入口的生命周期 | 模型入口仍为 JavaScript，前后台处理仅在立方体入口实现。将已验证的 Canvas、帧循环、窗口更新和暂停／恢复抽到共享 TypeScript 启动模块，再让两种场景复用。保留无资源模式作为故障隔离入口。 |
+| 3 | 验收统一后的生命周期 | 单入口已落地。两种模式各复测切后台、回前台及尺寸变化，检查动画恢复、相机、UI 命中和重复帧循环。 |
 | 4 | 扩展 UI 能力与真机矩阵 | 依次验证 Text 或 BitmapText、Sprite 及包内纹理、长列表或滚动、HUD 拖动时前后台切换和多指输入。为每项记录目标手机、微信基础库、测试素材和预期画面。通过后再提炼通用控件。 |
 | 5 | 验收发布环境 | 使用新缓存版本从 HTTPS 完成关闭调试的冷下载，复测热缓存。使用目标 iOS 与 Android 核对 UI、帧率及内存。 |

@@ -6,22 +6,17 @@ import { OrbitControls } from 'three-platformize/examples/jsm/controls/OrbitCont
 import { WechatPlatform } from './platform/WechatPlatform';
 import { loadHud } from './ui/loadHud';
 
+declare const MODEL_DEMO: boolean;
+
 function screenSize() {
   const { windowWidth, windowHeight, pixelRatio } = wx.getSystemInfoSync();
   return { width: windowWidth, height: windowHeight, resolution: Math.min(pixelRatio || 1, 2) };
 }
 
-async function main() {
-  const canvas = wx.createCanvas();
-  const platform = new WechatPlatform(canvas);
-  PLATFORM.set(platform);
-  const element = canvas as unknown as HTMLCanvasElement;
-  const renderer = new WebGL1Renderer({ canvas: element, antialias: true });
-  const scene = new Scene();
-  scene.background = new Color(0xdce6ed);
+function createCubeScene(scene: Scene, canvas: HTMLCanvasElement) {
   const camera = new PerspectiveCamera(45, 1, 0.1, 50);
   camera.position.set(3, 2, 5);
-  const controls = new OrbitControls(camera, element);
+  const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.enablePan = false;
   controls.minDistance = 2;
@@ -32,24 +27,48 @@ async function main() {
   const sunlight = new DirectionalLight(0xffffff, 1.5);
   sunlight.position.set(3, 4, 2);
   scene.add(cube, sunlight, new HemisphereLight(0xffffff, 0x6688aa, 1.2));
+  return {
+    camera,
+    controls,
+    update(delta: number) { cube.rotation.y += delta * 0.6; }
+  };
+}
+
+async function main() {
+  const tag = MODEL_DEMO ? '[ThreeDraco]' : '[Framework]';
+  if (MODEL_DEMO) console.log(`${tag} Starting`);
+  const canvas = wx.createCanvas();
+  const platform = new WechatPlatform(canvas);
+  PLATFORM.set(platform);
+  const element = canvas as unknown as HTMLCanvasElement;
+  const renderer = new WebGL1Renderer({ canvas: element, antialias: true, alpha: false });
+  const scene = new Scene();
+  scene.background = new Color(0xdce6ed);
+  const { camera, controls, update } = MODEL_DEMO
+    ? (await import('./scenes/LittlestTokyo')).createLittlestTokyoScene(scene, renderer, element)
+    : createCubeScene(scene, element);
 
   let hud: Awaited<ReturnType<typeof loadHud>> | undefined;
-  function resize() {
-    const { width, height, resolution } = screenSize();
+  function resize(size?: { windowWidth: number; windowHeight: number }) {
+    const screen = screenSize();
+    const width = size?.windowWidth || screen.width;
+    const height = size?.windowHeight || screen.height;
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setPixelRatio(resolution);
+    renderer.setPixelRatio(screen.resolution);
     renderer.setSize(width, height);
-    hud?.resize(width, height, resolution);
+    hud?.resize(width, height, screen.resolution);
+    controls.update();
   }
   resize();
   wx.onWindowResize?.(resize);
+  if (MODEL_DEMO) console.log(`${tag} Renderer initialized`);
 
   let frame: number | undefined;
   let previousTime: number | undefined;
   function animate(time: number) {
     if (previousTime !== undefined) {
-      cube.rotation.y += Math.min((time - previousTime) / 1000, 0.05) * 0.6;
+      update(Math.min((time - previousTime) / 1000, 0.05));
     }
     previousTime = time;
     controls.update();
@@ -61,8 +80,10 @@ async function main() {
       } catch (error) {
         hud = undefined;
         platform.hud = undefined;
-        console.error('[Framework] HUD render failed', error);
-        wx.showModal({ title: 'HUD render failed', content: String(error), showCancel: false });
+        console.error(`${tag} HUD render failed`, error);
+        if (!MODEL_DEMO) {
+          wx.showModal({ title: 'HUD render failed', content: String(error), showCancel: false });
+        }
       }
     }
     frame = requestAnimationFrame(animate);
@@ -78,13 +99,27 @@ async function main() {
   });
 
   const { width, height, resolution } = screenSize();
-  hud = await loadHud(canvas, renderer.getContext(), width, height, resolution);
-  platform.hud = hud;
-  resize();
-  console.log('[Framework] Three and Pixi initialized', renderer.getContext().getParameter(renderer.getContext().VERSION));
+  const gl = renderer.getContext();
+  try {
+    const overlay = await loadHud(canvas, gl, width, height, resolution);
+    const current = screenSize();
+    overlay.resize(current.width, current.height, current.resolution);
+    hud = overlay;
+    platform.hud = overlay;
+    if (MODEL_DEMO) console.log(`${tag} Pixi HUD initialized`);
+    else console.log(`${tag} Three and Pixi initialized`, gl.getParameter(gl.VERSION));
+  } catch (error) {
+    console.error(`${tag} HUD initialization failed`, error);
+    if (!MODEL_DEMO) {
+      wx.showModal({ title: 'HUD initialization failed', content: String(error), showCancel: false });
+    }
+  }
 }
 
 main().catch((error: unknown) => {
-  console.error('[Framework] Initialization failed', error);
-  wx.showModal({ title: 'Initialization failed', content: String(error), showCancel: false });
+  if (MODEL_DEMO) console.error('[ThreeDraco] Fatal error', error);
+  else {
+    console.error('[Framework] Initialization failed', error);
+    wx.showModal({ title: 'Initialization failed', content: String(error), showCancel: false });
+  }
 });

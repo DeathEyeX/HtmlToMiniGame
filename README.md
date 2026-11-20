@@ -13,12 +13,15 @@ npm.cmd run build
 
 ## 从哪里开始开发
 
-- `src/main.ts` 初始化 3D 场景、Canvas、共享渲染循环及前后台事件。
+- `src/main.ts` 是两种模式共用的 TypeScript 入口，初始化 Canvas、场景、共享渲染循环及前后台事件。
+- `src/scenes/LittlestTokyo.ts` 配置模型资源、相机、灯光和动画。
 - `src/ui/PixiHud.ts` 定义计数、开关、透明度滑块、遮罩及可拖动面板。
 - `src/platform/WechatPlatform.ts` 将微信触摸分流给 HUD 或 Three.js 控制器。
 
 ## Littlest Tokyo 模型回归
 
-先按[交接文档](docs/PROJECT_STATUS_AND_AGENT_HANDOFF.md)启动同级 `WechatAssetServer` 静态资源目录，并核对 `src/three-test.js` 的模型 URL。执行 `npm.cmd run build:model`，然后在开发者工具重新编译。这是模型与 UI 的联合验收入口，应同时看到 Littlest Tokyo 动画和 Pixi 计数按钮。立方体构建用于隔离启动故障，可通过 `npm.cmd run build` 切换。两个命令使用同一产物路径。
+先按[交接文档](docs/PROJECT_STATUS_AND_AGENT_HANDOFF.md)启动同级 `WechatAssetServer`，并核对 `src/scenes/LittlestTokyo.ts` 的模型 URL。执行 `npm.cmd run build:model` 后重新编译，应同时看到 Littlest Tokyo 动画和 Pixi 面板。立方体构建用于隔离启动故障，可通过 `npm.cmd run build` 切换。两个命令共用入口与产物路径。
 
 真机联调时在日志确认 `[PixiHUD] clock-bridge-v2 function`，随后检查 `Pixi HUD initialized` 或首条 HUD 错误。开发者按[UI 验收清单](docs/ARCHITECTURE_AND_USAGE.md#4-ui-验收和扩展)复测，Agent 用 `npm.cmd test` 做自动回归。
+
+历史故障、已用修复及剩余复测见 [QA 文档](docs/QA.md)。
