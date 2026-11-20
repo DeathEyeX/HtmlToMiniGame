@@ -2,7 +2,7 @@
   "description": "项目配置文件",
   "setting": {
     "urlCheck": false,
-    "es6": true,
+    "es6": false,
     "postcss": true,
     "minified": true,
     "newFeature": true,
@@ -18,7 +18,56 @@
   "projectname": "quickstart",
   "condition": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "value": "node_modules",
+        "type": "folder"
+      },
+      {
+        "value": "src",
+        "type": "folder"
+      },
+      {
+        "value": "libs",
+        "type": "folder"
+      },
+      {
+        "value": "docs",
+        "type": "folder"
+      },
+      {
+        "value": "tests",
+        "type": "folder"
+      },
+      {
+        "value": "dist/draco-test.bundle.js",
+        "type": "file"
+      },
+      {
+        "value": "dist/meta.json",
+        "type": "file"
+      },
+      {
+        "value": "tsconfig.json",
+        "type": "file"
+      },
+      {
+        "value": "assets",
+        "type": "folder"
+      },
+      {
+        "value": ".git",
+        "type": "folder"
+      },
+      {
+        "value": "package-lock.json",
+        "type": "file"
+      },
+      {
+        "value": "package.json",
+        "type": "file"
+      }
+    ],
     "include": []
   },
   "editorSetting": {

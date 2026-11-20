@@ -1,0 +1,279 @@
+# PixiWechatTest 项目状态与 Agent 开发交接
+
+核对日期为 2026-11-20。工程根目录为 `D:\Project\Web\ThreeJsTest\PixiWechatTest`。目标是可复用的微信小游戏框架，业务使用 TypeScript，3D 使用 Three.js，2D UI 暂定 PixiJS。现有 Littlest Tokyo 示例提供已跑通的 3D、Draco 和资源链路。
+
+## 1. 接手结论
+
+[当前架构、构建入口、UI 验收和使用指南](ARCHITECTURE_AND_USAGE.md)覆盖本轮审查后的工程现状。本文同时保留模型迁移、历史问题与实施任务。
+
+### 本轮实现状态
+
+- 默认 `npm run build` 从 `src/main.ts` 进行严格类型检查和 ES2019 打包。Three.js 程序化立方体与 Pixi Graphics 计数按钮共用微信上屏 Canvas，用于排查启动问题。默认依赖图不包含项目的 GLB、资源加载器或 Draco。
+- 微信开发者工具 Stable 1.06.2402030 已显示旋转立方体和 Pixi 矢量计数按钮。微信限制动态代码生成，HUD 使用 Pixi 提供的静态兼容模块。文字纹理在该模拟器上未显示，示例计数改为矢量数字。微信触摸路由通过模拟事件测试，应用层的点击、手势及真机表现仍需实测。
+- 真机微信基础库 3.17.6 上报告了 `navigator is not defined`。Pixi 会在模块求值阶段读取默认浏览器适配器，先前的 `DOMAdapter.set` 执行过晚。两个入口现统一由 `src/ui/loadHud.ts` 先补齐缺失的 `navigator`，再延迟初始化 Pixi。在无浏览器全局的 VM 环境复现并验证了启动顺序。
+- 真机日志显示 Pixi 调度器依赖 `performance.now()`。构建将 Pixi 使用的裸 `performance` 引用绑定到 `globalThis.performance`。启动时保留现有计时器，缺失时将微信原生时钟换算为毫秒，或使用单调递进的本地时间差。新包启动标记为 `[PixiHUD] clock-bridge-v2 function`。
+- 模型输入沿用 `WechatGamePlatform` 的原生订阅。HUD 仅在手势起点命中按钮时接管该手势。自动回归使用真实 OrbitControls 验证了挂载 HUD 前后场景拖动都能改变相机，也覆盖了 HUD 按下、释放、拖出和取消。
+- 用户确认真机预览可以点击。开发者工具 Stable 1.06.2402030、基础库 3.17.6 的临时探针确认 iPhone 模拟模式把鼠标点按和拖动送入 `wx.onTouchStart/Move/End`。同一业务 bundle 在干净窗口中通过按钮计数、拖出释放和模型拖动。原项目旧窗口仍不响应，调试器此前显示异常。关闭原项目窗口并重新打开同一目录后，原工程复测按钮从 `+0` 到 `+1`，拖动改变相机视角。故障定位到旧模拟器会话，工具内部失效机制尚未确认。这次排查仅更新文档，无业务代码变更。
+- `npm run build:model` 保留原 GLB／Draco 加载路径，同时挂载 Pixi HUD，是模型与 UI 的联合验收入口。两个构建命令写入同一产物路径。HTTPS 大模型冷缓存、设备兼容范围和滚轮支持仍待验证。
+- Pixi 面板已覆盖计数、开关、滑块透明度、遮罩裁剪和整板拖动，开发者已确认操作验证通过。Agent 负责自动测试和构建，开发者负责微信工具和真机手动验收。本轮复跑了 6 项自动回归和类型检查。
+
+### 既有模型基线
+
+- 微信入口 `game.js` 加载 `dist/game.bundle.js`。`npm run build:model` 从 `src/three-test.js` 生成模型联调包。当前构建使用 `three-platformize@1.133.3` 的微信适配和 WebGL1，并包含 PixiJS 及其依赖。
+- 当前依赖远程 Draco GLB。模型通过微信下载与文件 API 读入内存，由适配版 `GLTFLoader` 和静态打包的纯 JS Draco 解码器完成解析，再应用 Toon 材质并播放第一段动画。
+- 上次会话确认模拟器恢复显示，手机扫码后开启「开发者调试」可加载模型。下一道验收是手机关闭开发者调试后，使用已登记的 HTTPS 下载域名完成无缓存普通预览。这个条件仍待实测。
+- Git 当前只有基线提交 `359a5aa`（`init`）。大量有效实现还在工作区，接手时先保全这些文件，再开展改动。
+- 最小构建现有 TypeScript 入口和 Pixi 面板，能够脱离模型资源服务器独立运行。普通扫码及公网资源仍按 §7.4 做发布验收。
+
+## 2. 框架方案评审
+
+### 2.1 原型阶段的能力差距
+
+以下保留框架实施前的评审和临时构建测量，最新状态见 §1 与架构指南。
+
+| 能力 | 当前证据 | 首版要求 |
+| --- | --- | --- |
+| TypeScript 开发 | 网页原型和同级适配示例使用 TypeScript，小游戏主入口为 `src/three-test.js`，小游戏工程没有 TypeScript 或微信小游戏类型依赖。 | 在框架入口及新增应用模块启用严格型检，统一用锁定的依赖和脚本构建。 |
+| 微信开发者工具运行 | `game.js → dist/game.bundle.js` 已跑通过。Littlest Tokyo 冷启动依赖局域网模型服务。 | 导入同一目录，使用代码生成的场景验证首屏和 UI。Littlest Tokyo 保留为 Draco、纹理、动画和微信资源链路的独立回归样本。 |
+| Three.js 3D | 已验证 `three-platformize@1.133.3` 的 WebGL1 路径。 | 优先在这一基线上完成 TypeScript 和 UI 集成。将平台注册和渲染后端封装在实现边界，为后续引擎升级保留切换点。 |
+| PixiJS UI | 安装了 `pixi.js@8.23.0`，网页原型用 DOM 叠加第二张 Canvas，当前小游戏 bundle 未包含 Pixi。 | 在小游戏同屏绘制计数按钮或状态面板，点击时状态可见更新，按钮外仍可操作 3D。确认渲染、触摸和尺寸变化都能工作后再确定首版 UI 后端。 |
+
+本轮以内存中的临时 TypeScript 入口引用现有 3D 入口及 Pixi 的 `WebGLRenderer`、`Container`、`Graphics`、`Text` 和 `DOMAdapter`，沿用当前 esbuild 设置打包。结果通过 ES2019 语法解析，未计资源的原始 JS 为 1,769,520 字节，比当前主 bundle 多 504,033 字节。这个结果只覆盖转译、依赖打包和语法，TypeScript 正式型检、微信启动、Pixi 渲染与触控仍需验收。
+
+### 2.2 推荐架构
+
+1. **保留现有打包入口，给 TypeScript 建立类型检查。** 继续用 `game.js` 加载 ES2019 IIFE。引入 `typescript` 与微信维护的 `minigame-api-typings`，配置 `strict` 与 `noEmit`，让 `npm run build` 先执行 `tsc --noEmit`，再由 esbuild 从 TypeScript 入口产出原路径的 JS。先迁移首屏入口及与它相连的模块，保留生成的 Draco 解码器 JS。当前 GLTFLoader 声明要求完整 `DRACOLoader`，实际分支调用 `decodeDracoFile`，需要在连接处收敛为一个明确的类型适配边界。Three.js 和 Pixi 的声明仍可能引用 DOM 类型，类型可见性与真机 API 可用性分别验证。[esbuild TypeScript 说明](https://esbuild.github.io/content-types/#typescript) · [微信小游戏 TypeScript 类型定义](https://github.com/wechat-miniprogram/minigame-api-typings)
+2. **单画布、单主循环，先验证共享 WebGL。** 启动模块创建唯一的上屏 Canvas、初始化平台与 Three 渲染器，并把同一 Canvas 与 WebGL 上下文交给 Pixi。每帧由同一处更新和调度 Three、Pixi，按 Three 后 Pixi 的顺序绘制。渲染器切换时各自重置 GL 状态，Pixi 关闭清屏，尺寸、DPR 和上下文生命周期由启动模块协调。网页原型的双 Canvas 叠层不能直接移植到小游戏。共享上下文是优先验证方案，指南只提供了集成方法，当前微信 WebGL1 组合仍需实测。[PixiJS 的 Three.js 混合渲染指南](https://pixijs.com/8.x/guides/third-party/mixing-three-and-pixi) · [腾讯云小游戏画布说明](https://intl.cloud.tencent.com/zh/document/product/1219/68063)
+3. **把 Pixi 环境和输入验证做成两步。** 先运行 Pixi 的最小图形和文本，使用定向 `DOMAdapter` 适配画布、图片及必要能力。锁定版本的共享上下文初始化依赖 WebGL 构造器判别，Canvas 还须支持上下文事件监听。再做点击和手势分流。Pixi 的 `EventSystem` 还直接访问 `globalThis.document`、`navigator` 和全局事件监听，Three 平台适配又已经自动转发 `wx.onTouch*`。优先用单一输入入口按逻辑坐标命中 UI，再把其余手势交给 3D 适配。触点从按下到结束应维持所属目标。若完整 Pixi 事件桥在首轮受阻，可用手动命中验证一个 Pixi 按钮，同时把通用 Pixi 事件适配保留为待验项。[PixiJS 自定义运行环境](https://pixijs.com/8.x/guides/concepts/environments)
+4. **保持少量清晰的模块边界。** 建议将启动与帧循环、微信平台能力、3D 场景、HUD 以及已有资源与解码分别归属具体模块。HUD 读取界面状态并发出按钮动作，场景负责模型渲染、相机和动画。暂以可替换的模块接口承载 UI 试验，公用组件、场景管理器、浏览器双目标或额外构建工具由实际需求驱动。
+
+### 2.3 备选方案及切换条件
+
+| 方案 | 适用条件和取舍 |
+| --- | --- |
+| **Three + Pixi 共享 WebGL** | 建议优先验证。适合后续需要 Pixi 场景树及丰富 UI 的框架，避免把独立 UI Canvas 逐帧上传为纹理。需通过 WebGL1、画布状态、两引擎状态重置和输入路由验收。 |
+| **离屏 Canvas 2D + Three 纹理 HUD** | 共享 WebGL 遇到目标机的上下文或状态兼容问题时，先验证这一条。适合少量按钮、进度和文字，可以用微信离屏 Canvas 2D 绘制，界面变化时更新纹理，再由 Three 绘制到上屏 Canvas。若仍要保留 Pixi 场景树，可另行验证锁定版本的 Pixi CanvasRenderer 及其功能子集。两种方式都要实测离屏 Canvas 作为纹理源的兼容性，以及上传带宽和分辨率。简单 HUD 成功只代表 UI 降级可用。 |
+| **升级现代 Three.js** | 适合明确需要新渲染特性且允许提高设备门槛的阶段。官方 `WebGLRenderer` 自 r163 起要求 WebGL2。升级之前先做目标微信设备的 WebGL2、平台适配、GLB 纹理和 Draco 验收，避免与首版 TypeScript 和 Pixi 变更同时发生。[Three.js WebGLRenderer 文档](https://threejs.org/docs/pages/WebGLRenderer) |
+
+现有 esbuild 已能生成微信工具可用的包，增加类型检查即可开始迁移。Vite 可继续服务现有网页原型。若未来硬性目标转向可视化编辑器、内置 UI 和一键发布，再评估 Cocos 等完整引擎，这会改变当前以 Three.js 为核心的技术栈。[Cocos Creator 微信小游戏构建说明](https://docs.cocos.com/creator/3.5/zh/editor/publish/publish-wechatgame.html)
+
+## 3. 模型回归架构和依赖
+
+```text
+微信小游戏运行时
+  game.js → dist/game.bundle.js ← esbuild ← src/three-test.js
+                  ├─ wx.createCanvas → PLATFORM.set(WechatGamePlatform)
+                  │                   → WebGL1Renderer + OrbitControls
+                  ├─ WechatAssetLoader → wx.downloadFile + 微信文件系统
+                  │                   → ArrayBuffer（本地版本缓存或远程下载）
+                  ├─ GLTFLoader.parse(ArrayBuffer, '', ...)
+                  │       └─ WechatDracoLoader → 静态纯 JS decoder → BufferGeometry
+                  └─ applyAnimeToon → Scene → AnimationMixer / RAF 渲染
+```
+
+| 路径 | 当前职责和关键依赖 |
+| --- | --- |
+| `game.js`、`game.json` | 微信加载 bundle，运行方向为竖屏。bundle 启动依赖小游戏的 `wx` 等全局对象。 |
+| `project.config.json`、`project.private.config.json` | `compileType: game`，当前基础库配置为 `latest`。公开配置的 AppID 用于导入，私有配置只覆盖项目名。当前 `es6: false`、`minified: true`、`urlCheck: false`。打包忽略 `node_modules`、`src`、`assets`、`.git`、两个 npm 清单文件。源码更新后须重新生成 bundle。 |
+| `package.json`、`package-lock.json` | esbuild 锁定 0.28.2，构建参数固定为浏览器平台、IIFE、压缩、ES2019，并将 `fs` 和 `path` 标为外部模块。锁中还保留现代 `three@0.185.1`、`pixi.js@8.23.0`、`draco3d@1.5.9` 和 Git 依赖 `threejs-miniprogram-adapter`。 |
+| `src/three-test.js` | 初始化微信 Canvas、平台、渲染器、场景、相机、半球光与方向光。设备像素比上限为 2。静态浅色背景，sRGB 输出与 ACES 色调映射。相机接入 OrbitControls 阻尼、旋转和缩放。RAF 在资源加载前开始，逐帧更新控制器和 Mixer，动画步长上限 0.05 秒。模型位置为 `(1, 1, 0)`，缩放为 `0.01`，默认播放首个 clip。资源尝试结束后才注册可用的 `wx.onWindowResize`，更新相机宽高比和渲染尺寸。 |
+| `node_modules/three-platformize/src/WechatGamePlatform/index.js` | 为库提供 Canvas、最小 DOM、图片、Blob/URL、XHR 等适配。内部绑定 `wx.onTouchStart/Move/End`，向 Canvas 派发触摸和部分指针事件。GLB 内嵌纹理也依赖该平台的图片和 Blob/URL 路径。应用层应复用该事件桥接，避免重复转发。 |
+| `src/assets/WechatAssetLoader.js` | `loadRemoteGLB` 校验 URL 前缀以及 key/version 字符集。优先读取 `wx.env.USER_DATA_PATH/three-model-cache/<cacheKey>-<version>.glb`。校验 ArrayBuffer、最小长度、GLB magic、版本 2 和声明总长度。读失败或头部不合法时尝试删除后重下。下载须 HTTP 200，经临时文件读入后才尝试持久化。复制失败只告警，已读到的有效 buffer 继续供本次使用。缓存身份由 key 与版本组成。 |
+| `src/draco/WechatDracoLoader.js`、`src/draco/draco_decoder.js` | 解码工厂随主包静态导入，首次解码时初始化实例级 Promise。适配版 GLTFLoader 以 `decodeDracoFile(buffer, callback, attributeIDs, attributeTypes)` 调用。实现按 Draco unique ID 读顶点属性，支持 mesh 和 point cloud 分支，mesh 按顶点数选择 16/32 位索引，有 position 时计算包围盒和包围球，并释放解码器、解码缓冲、几何对象和临时数组。当前顶点属性统一输出 Float32，`attributeTypes` 仅作为接口参数传递。 |
+| `src/rendering/AnimeToonMaterial.js` | 把 MeshStandardMaterial 转成 MeshToonMaterial，支持材质数组，保留基础色、贴图、透明、顶点色及深度等关键设置。用共享 5×1、最近邻过滤、无 mipmap 的 `LuminanceFormat` 渐变纹理。Mesh 上设置投射和接收阴影，主场景的阴影开关目前未配置。 |
+
+当前资源配置在 `src/three-test.js` 的 `CONFIG`。URL 为 `http://192.168.1.46:8080/model.glb`，`cacheKey` 为 `littlest-tokyo`，`modelVersion` 为 `network-test-v3`。默认缓存文件名为 `littlest-tokyo-network-test-v3.glb`。当前样本是自包含 GLB，解析参数的基础路径为空字符串。将来换成带外链纹理或缓冲区的资源时，需要明确相对路径如何解析与下载。
+
+## 4. 从网页到小游戏的方案演进
+
+| 阶段 | 交接依据 |
+| --- | --- |
+| 浏览器原型 | 同级 `../littlest-tokyo-vite` 的 `src/main.ts` 是 Littlest Tokyo 网页实现。Three.js 0.180、Vite、TypeScript、浏览器 DOM Canvas、官方 GLTFLoader/DRACOLoader、OrbitControls、Sky/PMREM、Toon 材质与动画。另有第二个 Canvas 上的 Pixi 测试按钮。原型可用 `npm run assets` 准备模型和解码资源，再用 `npm run dev` 启动。 |
+| 微信早期实验 | 基线与保留的 `src/pixi-test.js` 记录现代 Three.js、手动 Canvas 和环境补丁、`MiniProgramDRACOLoader`、包内 `assets/model.glb`、`libs/draco` WASM 文件及 wrapper。文件名里的 Pixi 对应早期试验命名，这个脚本本身主要做 3D 加载、相机适配与动画。 |
+| 平台与解码试验 | 同级 `../three-platformize-demo-wechat-game` 是适配参考。`src/draco-test.js` 用文本 loader 和 `new Function` 验证工厂，`src/draco-static-test.js` 检查静态导入。两者及 `dist/draco-test.bundle.js` 处于实验路径。 |
+| 当前小游戏入口 | 使用同一套 `three-platformize` 核心、GLTFLoader、OrbitControls 和几何类型，通过 `WechatGamePlatform` 适配 WebGL1。解码采用静态纯 JS、主线程执行，运行链路无需 Worker、WASM decoder 或动态执行解码源码。GLB 从包内转为局域网下载和微信持久缓存。保留模型变换、动画、Toon 和基本轨道相机，小游戏已接入 Pixi HUD，Sky 与 PMREM 仍待移植决策。 |
+
+这条演进根据保留的网页原型、Git 基线、试验文件及现有入口重建。早期实验的完整时间顺序缺少连续 Git 提交记录。
+
+## 5. 上次空白问题与现有修复
+
+| 故障环节 | 上次记录与当前落点 |
+| --- | --- |
+| 模拟器接入缓存后仍空白 | 当时 `CONFIG.maxPixelRatio` 缺失，`Math.min` 得到 `NaN`，使画布尺寸失效。当时已出现 Draco 网格解码日志。现有源码保留 `maxPixelRatio: 2`。缓存版本改变会切换缓存文件并可能触发网络下载。 |
+| 材质纹理上传 | 历史实现的 `RedFormat` 在当前 WebGL1 环境报 `texImage2D: invalid internalformat`。现有 `AnimeToonMaterial.js` 已改为 `LuminanceFormat`。 |
+| 开发者工具完整重编译 | 当时工具再次转换了 esbuild 产物，启动时报 Babel 辅助模块缺失。现有项目设置 `es6: false`。 |
+| 点击预览时打包失败 | 旧 ES2020 bundle 残留 `?.` 和 `??`，预览压缩器首先在 `onProgress?.(...)` 附近报错。构建现在固定 `--target=es2019`，由 esbuild 转换这些语法。 |
+| 预览包生成后手机模型未加载 | 上次用户观察到局域网 HTTP 在手机开启「开发者调试」后可加载。现象与微信的下载域名检查吻合。没有服务器 GET 还可能是命中缓存、局域网不通或请求前被拦截，须结合手机端下载/缓存日志和冷启动验证。当前 URL 仍是私网 HTTP，正式口径需以 HTTPS 登记域名和关闭调试的实测为准。[腾讯云小程序平台网络指南](https://main.qcloudimg.com/raw/document/product/pdf/1593_91178_cn.pdf) · [腾讯云小游戏网络说明](https://staticintl.cloudcachetci.com/doc/pdf/product/tencent-cloud_1219_60585_zh.pdf) |
+
+上次修复的落点是 `src/three-test.js`、`src/rendering/AnimeToonMaterial.js`、`project.config.json`、`package.json` 与重新构建的 `dist/game.bundle.js`。纯 JS Draco 实现沿用修复前的工作路径。原始记录可查看 Codex 会话「排查微信小游戏预览空白」（`01a1f793-5c43-7872-a533-da1207ecbb0d`）。[esbuild JavaScript 语法转换说明](https://esbuild.github.io/content-types/#javascript)
+
+## 6. 验证状态
+
+| 状态 | 证据或待验项 |
+| --- | --- |
+| 本次复核通过：构建与产物 | Node 22.18.0、npm 11.5.2、esbuild 0.28.2。在内存按 npm 构建参数重建，输出 1,265,487 字节，与现有 `dist/game.bundle.js` 逐字节一致。主 bundle 及 `game.js` 通过 ES2019 语法解析。构建图只有入口、资源、Toon、Draco 两个应用源文件及 `three-platformize`。 |
+| 本次复核通过：资源与核心解码 | `../WechatAssetServer/model.glb` 和 `../littlest-tokyo-vite/public/models/LittlestTokyo.glb` 的 SHA-256 相同，为 `8375c2aa6808e28ad1cb9c0d43e1513f57ffd7865244bf66bbbd5bb0e907e06d`。GLB 为版本 2、4,133,072 字节，要求 `KHR_draco_mesh_compression`，有 4 张内嵌图片和 1 段动画 `Take 001`。Node 中通过当前 Draco 模块逐个解码 71 个压缩图元，合计 193,125 顶点。这项测试覆盖几何解码，纹理与屏幕显示沿用模拟器历史证据。 |
+| 上次会话验证通过：模拟器与缓存模拟 | 微信开发者工具修复后成功编译，显示 Toon 模型与动画，场景日志为 71 个网格、193,125 顶点、1 段动画。当时模型 URL 返回 HTTP 200，缓存命中、损坏重下载、下载失败等 7 项为模拟检查。当前 `npm test` 已有 6 项启动与输入回归。 |
+| 上次用户验证通过：调试手机预览 | 手机开启「开发者调试」后可加载。设备型号、微信版本、基础库版本以及冷缓存/热缓存的完整测试记录待补。 |
+| 待验：无调试普通预览 | 尚无 HTTPS 合法下载域名和新缓存路径下的手机通过记录。本次只做源码、构建和资源离线核对。沙箱内的回环 HTTP GET 被 Windows 套接字权限拒绝，局域网 HTTP、模拟器和手机均未重新实测。 |
+| 待验：输入与生命周期 | 真机单指旋转、双指缩放、前后台恢复、窗口尺寸变化、长时间运行及换机表现。最低基础库与 iOS/Android 支持范围尚未确定。 |
+| 待验：其他素材与视觉 | 点云、32 位索引在目标 WebGL1 设备上的表现、整数/归一化属性、蒙皮或其他 GLB 样本。阴影、Sky/PMREM、小游戏 HUD 均未形成当前验收基线。 |
+
+## 7. 模型演示构建、运行与真机预览
+
+以下使用 PowerShell。工程当前已有 `node_modules`。首次在干净目录安装依赖可用 `npm.cmd ci`，避免 PowerShell 执行策略阻止 npm 脚本入口。依赖锁含 GitHub Git 依赖，`resolved` 记录为 `git+ssh`，干净安装需要可用的 npm registry、Git/GitHub 网络及相应传输配置。本次复核使用已安装的依赖。
+
+### 7.1 准备并启动资源服务器
+
+```powershell
+Set-Location 'D:\Project\Web\ThreeJsTest'
+Get-Item '.\WechatAssetServer\model.glb'
+ipconfig
+python -m http.server 8080 --bind 0.0.0.0 --directory '.\WechatAssetServer'
+```
+
+保持资源服务器终端运行，`Ctrl+C` 可停止。`WechatAssetServer` 是同级静态文件目录。若文件缺失，可从 `littlest-tokyo-vite/public/models/LittlestTokyo.glb` 复制为该目录的 `model.glb`。网页副本也缺失时，在 `littlest-tokyo-vite` 安装依赖并执行 `npm.cmd run assets`，该脚本从上游下载资源。
+
+另开终端执行以下命令，验证 HTTP 200 及当前模型长度。随后用同一 Wi-Fi 的手机访问同一 URL，排除 Windows 入站防火墙、访客 Wi-Fi 隔离、VPN、地址变化或端口冲突。以 `ipconfig` 中手机可达的网卡 IPv4 为准。地址变动时调整 `CONFIG.modelURL` 并重建，手机使用电脑的 LAN 地址。
+
+```powershell
+curl.exe --noproxy '*' --connect-timeout 5 -I 'http://192.168.1.46:8080/model.glb'
+```
+
+### 7.2 构建与模拟器
+
+```powershell
+Set-Location 'D:\Project\Web\ThreeJsTest\PixiWechatTest'
+# 仅首次安装依赖或需要恢复锁文件对应的依赖树时执行
+npm.cmd ci
+npm.cmd run build:model
+Get-Item '.\dist\game.bundle.js'
+```
+
+1. 在微信开发者工具导入 `PixiWechatTest` 工程根目录，选择小游戏工程并使用有预览权限的账号和项目配置里的 AppID。保留 `game.js`、`game.json`、`dist/game.bundle.js` 的现有路径。
+2. 点击「编译」。局域网 HTTP 联调沿用 `urlCheck: false`。如界面出现工具转换或域名相关报错，核对当前项目设置及公开、私有配置的生效值。
+3. 在控制台检查 `[ThreeDraco] Starting`、`Renderer initialized`、资源下载/命中日志、`Resource ready`、`[Draco] Decoder initialized`、`GLB parsed`、`[AnimeToon] Converted materials`、`Animation:` 与 `Scene ready`。同时观察模型和动画，日志统计仅能证明到达相应阶段。
+
+### 7.3 手机局域网调试复测
+
+1. 手机与电脑使用互通的 Wi-Fi，确认服务器持续运行；如需验证冷下载，为本次测试临时换一个从未使用的 `modelVersion`（只使用字母、数字、下划线、连字符），然后重建。
+2. 在开发者工具点击「预览」生成新二维码，用手机微信扫码，在小游戏菜单开启「开发者调试」，按界面提示重进。开发者工具的「真机调试」入口可用于排查，但其测试结果应单独记录。
+3. 冷启动需要看到 `[AssetLoader] Download`、服务器收到 `GET /model.glb` 并返回 200、`Download completed` 及最终 `Scene ready`。冷启动后用同样的包重新打开，看到 `Cache hit`、场景恢复且无重复 GET，可作为热缓存验收。需要复测缓存损坏时仅处理对应测试版本的文件。
+
+### 7.4 关闭调试的普通扫码验收
+
+1. 将同一个 GLB 部署到手机可访问、证书有效的 HTTPS 静态服务或 CDN。在微信公众平台为当前小游戏 AppID 登记对应的 `downloadFile` 合法域名，核对下载最终主机及后台生效配置。
+2. 切换 `modelURL` 至 HTTPS，并换成全新 `modelVersion`，再构建和生成预览二维码。验收时关闭开发者工具的跳过校验设置和手机端「开发者调试」。推荐记录本次的 AppID、有效基础库、微信版本、设备系统及资源版本。
+3. 用授权手机普通扫码，记录服务端 200、无缓存下载证据和模型显示及动画。再次打开验证热缓存。至少覆盖目标 iOS 与 Android 各一台，其他设备按发布范围扩展。
+
+### 7.5 按首个错误定位
+
+| 迹象 | 先检查 |
+| --- | --- |
+| 无 `Starting` 或生成不了二维码 | 项目导入根目录、`game.js` 是否加载新 bundle、预览打包错误、ES2019、`es6: false`。 |
+| 有启动日志，缺少 `Renderer initialized` | `wx` 初始化、Canvas、平台注册顺序、窗口和像素比数值、WebGL1 上下文。 |
+| 出现底色，下载后无 `Resource ready` | 缓存文件读取、下载失败信息、HTTP 返回状态、合法域名、Wi-Fi、防火墙、GLB 头部和长度。 |
+| 有 `Resource ready`，缺少 `GLB parsed` | Draco 工厂与回调是否完成、纹理适配、压缩 bufferView 与属性。有些解码异常可能使外层 GLTF Promise 悬挂。 |
+| 已有 `Scene ready`，屏幕仍异常 | 相机目标与模型变换、渲染循环、有效绘图尺寸、WebGL 纹理格式与 GL 错误。 |
+
+## 8. 遗留问题和必须保留的实现
+
+- **保留构建与平台顺序。** 微信入口继续指向已生成的 ES2019 bundle。先创建微信 Canvas 并注册 `WechatGamePlatform`，再创建 Renderer 与 Controls。WebGL1 需保留有限 DPI 和兼容的 Toon 渐变格式。升级包、渲染器或构建目标时需重复预览打包与真机验收。
+- **保留 GLB 字节链路。** 当前稳定路径是 `wx.downloadFile → wx 文件读取 → GLB 校验 → GLTFLoader.parse`，保留缓存版本隔离和缓存写失败时继续使用内存数据的行为。缓存只验容器头，没有内容哈希、自动淘汰、下载去重或应用级超时/重试。URL 换源而 key/version 相同时仍会命中此前缓存。结构通过头部检查但内容解析失败的缓存，当前不会自动失效。
+- **保留 Draco 接口与释放。** 同版本的 `three-platformize` GLTFLoader 和几何对象配合使用，保留静态工厂、回调契约、unique ID 映射、索引选择和显式释放。依赖源码显示 GLTFLoader 的 Draco 分支只用成功回调结算，既没有 reject 参数也没有接住解码方法返回的 Promise。解码拒绝可能表现为解析悬挂，应以坏 Draco 几何样本复现并验证错误传播。解码同步计算仍在主线程，首帧卡顿、峰值内存与释放行为待实测。
+- **补齐运行反馈与生命周期。** 模型加载错误和下载进度只进入日志，模型失败后可能只剩背景与 HUD。模型入口缺少前后台暂停/恢复，立方体入口已有 RAF 暂停与恢复。模型入口的 Resize 监听已移到资源加载之前。`CONFIG.enableShadows` 与 `enableTouchDebug` 被引用但没有定义，当前按关闭处理。
+- **保全工作区与产物策略。** 起始工作区已删除 tracked `assets/model.glb`，修改 `dist/game.bundle.js`、`package.json`、`package-lock.json` 和 `project.config.json`。有效入口及 `src/assets/`、`src/draco/`、`src/rendering/` 均是未跟踪内容，两个 Draco 试验入口、`dist/draco-test.bundle.js` 与 `dist/meta.json` 也未跟踪。现有打包规则未排除 `libs/`、`dist` 内试验产物或 `docs/`，发布前以开发者工具包分析核对实际内容和体积。当前 README 仍是微信示例模板。首次整理提交时优先保障入口、解码工厂、锁文件与构建产物可以从干净工作区恢复。
+
+## 9. 推荐任务与验收
+
+首版交付一个可复用的微信小游戏工程。另一位开发者拿到完整源码和锁文件后，可以执行 `npm ci`、`npm run build`，导入工程根目录，在微信开发者工具里看到可操作的 3D 场景及由 Pixi 绘制的按钮。默认演示无需资源服务器。以下任务记录实现步骤和完整验收口径。本轮已完成默认及模型构建和同屏显示验证，待验项见 §1。
+
+| 任务 | 优先级 | 依赖 | 可交付结果 |
+| --- | --- | --- | --- |
+| T01 固定当前 3D 回归基线 | P0 | 无 | 可恢复的工作区和旧链路验证记录 |
+| T02 接入 TypeScript 构建 | P0 | T01 | 严格型检和可导入的 ES2019 微信包 |
+| T03 实现无资源加载的首屏 | P0 | T02 | TypeScript 入口、程序化 3D、单帧循环、可扫码的最小预览包 |
+| T04 验证 Pixi 和 Three 同屏 | P0 | T03 | 同画布 3D、Pixi 图形和文字 |
+| T05 实现按钮与 3D 手势分流 | P0 | T04 | 可点击 HUD 和真机兼容验证记录 |
+| T06 接回 GLB 与 Draco 模型演示 | 独立回归 | T03 | 可选模型构建，用于模拟器或局域网调试 |
+| T07 交付可复用工程 | P0 | T05 | README、可复现安装构建和主包验收记录 |
+| T08 增强资源错误恢复及生命周期 | P1 | T07 | 可诊断的错误反馈和重试、生命周期回归 |
+| T09 验收关闭调试的普通扫码 | 发布 | T07、可用 HTTPS 与后台权限 | 无调试的有效预览记录 |
+
+### T01 · 固定现有 3D 回归基线
+
+1. 记录 `359a5aa` 和当前工作区差异。保障 `src/three-test.js`、相关解码器、材质、资源代码及锁文件处于可恢复的基线中，特别留意当前未跟踪源码和已有模型删除记录。
+2. 用当前 JavaScript 构建命令重新核对 `game.js → dist/game.bundle.js`。按 §7.1 至 §7.3 复跑模拟器及可用的调试手机预览，记录构建体积、基础库和首个失败阶段。用新测试缓存版本和原版本分别检查冷下载与热缓存。
+
+**验收要求**为可复现当前构建，模拟器看到模型、贴图、Toon 和动画。场景日志预计为 71 个网格、193,125 个顶点、1 段动画。若当次设备或服务器不可用，记录已验证范围及缺失证据，从已确认的构建和离线解码基线继续做 T02。
+
+### T02 · 接入 TypeScript 构建
+
+1. 在 `PixiWechatTest` 增加并锁定 `typescript` 和 `minigame-api-typings`。配置 `tsconfig.json`，对框架源码开启 `strict`，用 `noEmit` 做类型检查。构建先执行 `tsc --noEmit`，成功后由 esbuild 从建议入口 `src/main.ts` 输出 `dist/game.bundle.js`。
+2. 保留 `game.js`、ES2019 IIFE 和开发者工具的 `es6: false`。首轮可从 TypeScript 入口调用旧场景验证兼容。对旧 JavaScript 模块采用小范围类型声明或适配，按业务入口迁移。生成的 Draco decoder 继续保留 JavaScript。
+3. 用一个临时类型错误验收构建失败，再恢复代码重建。若 `npm ci` 卡在现有 GitHub 依赖，先对照主包依赖图和历史实验的引用，处理安装问题后重试干净安装。
+
+**验收要求**为 `npm run build` 在 TypeScript 型检失败时返回非零且停止打包。恢复后正常生成 ES2019 产物，开发者工具成功执行 TypeScript 入口的启动逻辑。
+
+### T03 · 实现无资源加载的 Three 首屏
+
+1. 从旧示例提取已验证的 Canvas 初始化顺序、`WechatGamePlatform`、`WebGL1Renderer`、DPR 上限和相机控制。首屏用 TypeScript 直接生成一个有色立方体、相机和灯光，验证渲染、旋转及拖动。整个默认演示不读取 GLB、外部纹理或模型缓存，也不发起资源请求。
+2. 建立清晰的三个边界。启动模块持有 Canvas 和 RAF，场景模块持有 3D 对象、相机及控制器，微信平台模块提供 Canvas、窗口尺寸与触控适配。用一次初始化和一处帧调度串起更新与绘制，留出 HUD 绘制位置。
+3. 窗口变更时统一更新尺寸、相机和逻辑坐标。用开发者工具的包分析确认默认预览包大小与文件清单。Littlest Tokyo 资源保留在包外，默认构建入口仅加载程序化演示，GLB 加载器和 Draco 工厂由 T06 的模型演示构建引用。若包分析仍包含 `dist/draco-test.bundle.js`、旧 WASM 等试验内容，按实际引用调整预览打包规则。
+
+**验收要求**为关闭局域网资源服务器，构建默认程序化演示。在模拟器确认立方体可见、画面持续更新、相机可操作，切换视口后画幅正确。用同一构建生成普通预览二维码，在可用的授权手机上关闭开发者调试扫码并复现。首次打开与再次进入均无模型下载请求，也无需操作旧模型缓存。T04 和 T05 沿用这个场景验收 Pixi 同屏和触控。无法生成二维码时记录工具报错及实际预览包文件清单。
+
+### T04 · 验证 PixiJS 和 Three 共享画布
+
+1. 使用项目已锁定的 Pixi 版本，先编写最小 HUD 模块，只画一个有色按钮背景和一行计数文本。先验证环境适配与渲染初始化，再引入事件处理。
+2. 按 §2.2 复用 Three 所用的上屏 Canvas 和 GL 上下文。帧顺序为更新场景、Three 渲染、Pixi 渲染，切换时重置两边状态，Pixi 绘制时保留 Three 的颜色缓冲。由同一模块负责设置尺寸和 DPR。
+3. 在开发者工具记录实际 GL 版本、Pixi 首帧表现及第一个报错点。分别检查上下文版本判别、Canvas 事件能力、扩展和状态恢复。若共享路径卡住，记录最小复现，并按 §2.3 验证备选路线。
+
+**验收要求**为同一屏稳定显示运动中的 3D 和 Pixi 图形、文字，无画面交替清屏或持续的 WebGL 错误。若走离屏 Canvas 2D 备选，记录其结果并等待项目方确认是否满足首版 UI 要求。
+
+### T05 · 接上 HUD 点击和 3D 手势
+
+1. 使用逻辑坐标进行 UI 命中测试，由单一输入入口处理事件分流。在触摸开始时确定 UI 或 3D 所有权，持续到结束或取消。复用微信平台已有的触摸桥接能力，梳理现有自动转发和新增输入处理的调用顺序。
+2. 增加一个计数按钮。完整 Pixi 事件桥接若需要更多平台兼容工作，可先由微信触控做薄层命中，Pixi 仍负责按钮渲染。处理 `touchcancel`，避免拖出按钮或多指途中错误触发点击。连同尺寸和 DPR 一起验证命中区域。
+3. 用代表性 iOS 和 Android 各一台做调试预览。记录机型、微信版本、有效基础库、GL 版本和实际触摸路径。缺少设备时可先完成模拟器验收，设备兼容保持待验。
+
+**验收要求**为点按按钮计数加一且相机不动，拖出或取消不触发，按钮外单指可旋转、双指可缩放。切换模拟器尺寸或 DPR 后，按钮显示位置与命中区域仍一致。
+
+### T06 · 接回现有模型演示并做 Draco 回归
+
+1. 提供独立选择的模型演示构建，复用同一个 TypeScript 框架启动模块。继续复用 `WechatAssetLoader`、`WechatDracoLoader`、适配版 `GLTFLoader` 和 Toon 材质，由模型演示配置指定资源 URL、缓存 key 和版本。
+2. 在 GLTFLoader 的类型适配处收敛自定义 Draco 回调契约，保留现有解码工厂、几何属性映射和资源释放。继续保留内存 GLB 校验、缓存写失败时的本次内存加载，以及局域网调试流程。
+3. 用新版本冷下载，验证服务器收到 GET。再次进入验证缓存命中；在同屏 HUD 存在时检查贴图、动画及相机。恢复默认为程序化场景后，再验证无服务启动。
+
+**验收要求**为模型模式在模拟器或局域网调试路径复现现有 71 个网格、193,125 个顶点与 1 段动画，冷、热缓存可区分。Littlest Tokyo 为 4,133,072 字节，保持远程提供。若后续需要验证微信普通预览中的 GLB 和 Draco，可优先选一个足够小的代表性 Draco GLB 做专项测试，再按 §7.4 验证远程大模型。模型回归与默认框架的扫码首屏分别验收。
+
+### T07 · 交付可复用工程
+
+1. 将现有模板 README 更新为四段步骤。依赖安装、构建、微信开发者工具导入、运行可选模型演示。说明开发者从哪里加场景、按钮和点击逻辑，记录实际验证环境。
+2. 用微信开发者工具的包分析检查主包文件和体积。保留运行入口、动态引用的实际资源和主 bundle，按用途处理试验 bundle、构建元数据、旧 WASM 及文档的打包规则。将生成产物的入库策略记录在 README。
+3. 让另一位开发者或使用干净副本从头执行安装、构建和导入。验收记录保存构建结果、画面、交互结果和当时未覆盖的手机范围。
+
+**验收要求**为无本机私网地址和旧缓存前置条件，干净工作区运行两条 npm 命令后，开发者工具能打开可交互的 Three + Pixi 首屏。包分析及实际构建步骤可由接手者重现，模型回归的状态和复现命令单独记录。
+
+### T08 · 增强错误恢复与生命周期
+
+1. 为资源演示添加进度、失败与重试状态。用断网、非 200、坏 GLB 头和坏 Draco 数据验证不同故障，处理 Draco 拒绝导致的 GLTF 等待悬挂。按需要为异步尝试做取消或过期结果丢弃。
+2. 验证前后台暂停和恢复、窗口更新及输入取消。多次打开、失败和重试时检查是否产生重复 RAF、监听器或资源占用。
+3. 记录代表性设备在程序化场景和模型场景下的首屏、模型加载阶段耗时、帧率和内存，基于实测再制定性能门槛。
+
+**验收要求**为失败有可见反馈，重试可恢复，前后台切换后场景和 HUD 正常。记录能指出失败阶段及设备环境。
+
+### T09 · 验证远程资源在普通扫码下的表现
+
+1. 在有 HTTPS 托管和 AppID 后台权限时，按 §7.4 登记合法下载域名，切换模型模式的 URL 和测试缓存版本，生成新二维码。
+2. 在目标手机关闭开发者调试，记录冷下载的服务端 200、模型可见、动画播放及 UI 可点击。再次打开记录缓存命中。记录线上 URL、资源版本和测试设备。
+
+**验收要求**为目标 iOS 与 Android 在关闭调试时通过模型演示冷启动与热缓存。默认程序化场景仍可独立运行。
+
+Sky/PMREM、完整 UI 组件库、玩法和现代 Three.js 升级在框架首版验收后再按需求立项。
+
+## 10. 需要项目方确认的决策
+
+1. **PixiJS 的验收边界。** 建议 P0 先验证 Pixi 共享 WebGL。如果目标设备阻塞，确认是否允许先交付 Canvas 2D HUD 框架版本，并保留 Pixi 作为待完成的后端选项。
+2. **兼容范围。** 先确定用于框架验收的 iOS、Android 代表机型与最低微信基础库。是否升级现代 Three.js 由这些设备的 WebGL2 实测和所需功能决定。
+3. **产物和发布。** 建议把 `npm run build` 作为生成入口，是否继续跟踪 `dist/game.bundle.js` 由仓库分发方式决定。需要关闭调试的普通扫码交付时，再确认 HTTPS 托管与 AppID 域名配置负责人。

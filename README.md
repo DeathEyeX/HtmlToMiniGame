@@ -1,34 +1,24 @@
-# 示例游戏
+# TypeScript 微信小游戏框架
 
-示例相关说明查阅[新手教程](https://developers.weixin.qq.com/minigame/dev/guide/develop/start.html)
+默认示例在微信上屏 Canvas 内绘制 Three.js 立方体和 PixiJS 验证面板。立方体由代码生成，默认构建无需 GLB、外部贴图、缓存或资源服务器。依赖、运行架构、资源和手势分流详见[架构与使用指南](docs/ARCHITECTURE_AND_USAGE.md)。
 
-## 源码目录介绍
+## 安装与运行
 
+```powershell
+npm.cmd ci
+npm.cmd run build
 ```
-├── audio                                      // 音频资源
-├── images                                     // 图片资源
-├── js
-│   ├── base
-│   │   ├── animatoin.js                       // 帧动画的简易实现
-│   │   ├── pool.js                            // 对象池的简易实现
-│   │   └── sprite.js                          // 游戏基本元素精灵类
-│   ├── libs
-│   │   └── tinyemitter.js                     // 事件监听和触发
-│   ├── npc
-│   │   └── enemy.js                           // 敌机类
-│   ├── player
-│   │   ├── bullet.js                          // 子弹类
-│   │   └── index.js                           // 玩家类
-│   ├── runtime
-│   │   ├── background.js                      // 背景类
-│   │   ├── gameinfo.js                        // 用于展示分数和结算界面
-│   │   └── music.js                           // 全局音效管理器
-│   ├── databus.js                             // 管控游戏状态
-│   ├── main.js                                // 游戏入口主函数
-│   └── render.js                              // 基础渲染信息
-├── .eslintrc.js                               // 代码规范
-├── game.js                                    // 游戏逻辑主入口
-├── game.json                                  // 游戏运行时配置
-├── project.config.json                        // 项目配置
-└── project.private.config.json                // 项目个人配置
-```
+
+在微信开发者工具中导入本目录，选择小游戏并编译。点击蓝色按钮会增加计数，按钮外拖动可旋转相机。构建先运行 TypeScript 严格检查，再通过 esbuild 生成 `dist/game.bundle.js`，由 `game.js` 加载。
+
+## 从哪里开始开发
+
+- `src/main.ts` 初始化 3D 场景、Canvas、共享渲染循环及前后台事件。
+- `src/ui/PixiHud.ts` 定义计数、开关、透明度滑块、遮罩及可拖动面板。
+- `src/platform/WechatPlatform.ts` 将微信触摸分流给 HUD 或 Three.js 控制器。
+
+## Littlest Tokyo 模型回归
+
+先按[交接文档](docs/PROJECT_STATUS_AND_AGENT_HANDOFF.md)启动同级 `WechatAssetServer` 静态资源目录，并核对 `src/three-test.js` 的模型 URL。执行 `npm.cmd run build:model`，然后在开发者工具重新编译。这是模型与 UI 的联合验收入口，应同时看到 Littlest Tokyo 动画和 Pixi 计数按钮。立方体构建用于隔离启动故障，可通过 `npm.cmd run build` 切换。两个命令使用同一产物路径。
+
+真机联调时在日志确认 `[PixiHUD] clock-bridge-v2 function`，随后检查 `Pixi HUD initialized` 或首条 HUD 错误。开发者按[UI 验收清单](docs/ARCHITECTURE_AND_USAGE.md#4-ui-验收和扩展)复测，Agent 用 `npm.cmd test` 做自动回归。

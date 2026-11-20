@@ -1,21 +1,28 @@
 {
   "name": "pixiwechattest",
   "version": "1.0.0",
-  "description": "示例相关说明查阅[新手教程](https://developers.weixin.qq.com/minigame/dev/guide/develop/start.html)",
+  "description": "TypeScript、Three.js 与 PixiJS 微信小游戏框架",
   "main": "game.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && esbuild src/main.ts --bundle --minify --platform=browser --format=iife --target=es2019 --define:performance=globalThis.performance --outfile=dist/game.bundle.js",
+    "build:model": "npm run typecheck && esbuild src/three-test.js --bundle --minify --platform=browser --format=iife --target=es2019 --define:performance=globalThis.performance --external:fs --external:path --outfile=dist/game.bundle.js",
+    "test": "node --test tests/*.test.cjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "draco3d": "^1.5.9",
     "pixi.js": "^8.23.0",
     "three": "^0.185.1",
+    "three-platformize": "^1.133.3",
     "threejs-miniprogram-adapter": "github:Boen36/threejs-miniprogram-adapter"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "minigame-api-typings": "^3.8.22",
+    "typescript": "^5.9.3"
   }
 }
