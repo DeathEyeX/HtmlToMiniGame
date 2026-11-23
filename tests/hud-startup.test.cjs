@@ -2,18 +2,14 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const vm = require('node:vm');
 const { buildSync } = require('esbuild');
-const { scripts } = require('../package.json');
-const define = Object.fromEntries(Array.from(
-  scripts.bundle.matchAll(/--define:([^= ]+)=([^ ]+)/g),
-  ([, name, value]) => [name, value]
-));
+const { platformDefines } = require('../scripts/build.cjs');
 
 const { outputFiles: [bundle] } = buildSync({
   stdin: {
     contents: `
       export { loadHud } from "./src/framework/ui/loadHud";
       export async function loadPixiUIDiagnostics() {
-        return (await import("./src/examples/pixi-ui/pixiUI")).createPixiUIDiagnostics;
+        return (await import("./src/game/apps/pixi-ui/pixiUI")).createPixiUIDiagnostics;
       }
       export async function schedule() {
         const { SchedulerSystem } = await import("pixi.js");
@@ -27,7 +23,7 @@ const { outputFiles: [bundle] } = buildSync({
   format: 'iife',
   globalName: 'hudStartup',
   target: 'es2019',
-  define,
+  define: platformDefines,
   write: false
 });
 

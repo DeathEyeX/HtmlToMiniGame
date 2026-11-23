@@ -3,7 +3,7 @@ const test = require('node:test');
 const { buildSync } = require('esbuild');
 
 const bundle = buildSync({
-  entryPoints: ['src/game/scenes/color-match/round.ts'],
+  entryPoints: ['src/game/common/color-match/round.ts'],
   bundle: true,
   format: 'cjs',
   write: false

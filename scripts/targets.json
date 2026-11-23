@@ -1,0 +1,11 @@
+{
+  "controls": { "entry": "src/game/apps/controls/main.ts" },
+  "model-viewer": { "entry": "src/game/apps/model-viewer/main.ts" },
+  "showcase": { "entry": "src/game/apps/showcase/main.ts", "assets": ["pixi-ui-probe.png"] },
+  "showcase-model": { "entry": "src/game/apps/showcase/withModel.ts", "assets": ["pixi-ui-probe.png"] },
+  "webgl2": { "entry": "src/game/apps/webgl2/main.ts", "webgl2": true },
+  "webgl2-model": { "entry": "src/game/apps/webgl2/withModel.ts", "webgl2": true },
+  "pixi-ui": { "entry": "src/game/apps/pixi-ui/main.ts", "assets": ["pixi-ui-probe.png"] },
+  "workbench": { "entry": "src/game/apps/workbench/main.ts", "assets": ["pixi-ui-probe.png"] },
+  "color-match": { "entry": "src/game/apps/color-match/main.ts", "assets": ["pixi-ui-probe.png"] }
+}

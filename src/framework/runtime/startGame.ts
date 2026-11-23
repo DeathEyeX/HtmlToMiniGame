@@ -21,12 +21,13 @@ export type CreateLocalScene = (
 ) => SceneSetup;
 
 type CreateScene = (...args: Parameters<CreateLocalScene>) => SceneSetup | Promise<SceneSetup>;
+export type RendererFactory = (canvas: HTMLCanvasElement) => WebGLRenderer;
 
 interface StartupDiagnostics {
   tag: string;
   hudReadyMessage: string;
   showHudErrorModal: boolean;
-  createWebGL2Renderer?: (canvas: HTMLCanvasElement) => WebGLRenderer;
+  createWebGL2Renderer?: RendererFactory;
 }
 
 function screenSize() {

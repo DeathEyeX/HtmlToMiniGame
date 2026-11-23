@@ -23,7 +23,7 @@
 | --- | --- | --- |
 | QA-01 | 网页版的标准 DOM、第二张上屏 Canvas、现代 Three.js 官方 Draco Worker 路径依赖浏览器环境。微信早期曾试用手动环境补丁、`MiniProgramDRACOLoader`、包内 GLB 和 WASM wrapper。 | 微信使用原生 Canvas 和 `three-platformize` 的 WebGL1 适配。Three 渲染之后在同一上下文绘制 Pixi。旧实验及浏览器原型的双画布、Sky/PMREM 属于历史路径。 |
 | QA-02 | 为确认 Draco 工厂能否启动，历史上有文本 loader 加 `new Function` 的实验，以及静态导入的小脚本。 | 已验证模型使用随包静态构建的纯 JS decoder，通过 `WechatDracoLoader.decodeDracoFile` 接入 GLTFLoader。继续保留 unique ID 属性映射、索引选择和显式释放。小游戏日志中其他组件的 Worker 初始化并不能用于判断这一解码路径。 |
-| QA-03 | 模拟器有 Draco 网格日志，画面却空白。旧 `CONFIG.maxPixelRatio` 缺失，`Math.min()` 得到 `NaN`，最终画布尺寸失效。 | `src/main.ts` 统一执行 `Math.min(pixelRatio \|\| 1, 2)`，窗口尺寸、相机和 HUD 使用同一逻辑尺寸。上次修复后模拟器恢复显示。本轮同时用微信小游戏尺寸回调的顶层宽高取值，以系统信息作回退，待界面覆盖尺寸变化。 |
+| QA-03 | 模拟器有 Draco 网格日志，画面却空白。旧 `CONFIG.maxPixelRatio` 缺失，`Math.min()` 得到 `NaN`，最终画布尺寸失效。 | `src/framework/runtime/startGame.ts` 统一执行 `Math.min(pixelRatio \|\| 1, 2)`，窗口尺寸、相机和 HUD 使用同一逻辑尺寸。修复后模拟器恢复显示。微信小游戏尺寸回调读取顶层宽高，并以系统信息作回退。 |
 | QA-04 | 旧 Toon 渐变纹理用 `RedFormat`，微信 WebGL1 报 `texImage2D: invalid internalformat`。 | 保留 `AnimeToonMaterial.js` 的单通道 `LuminanceFormat` 渐变和贴图转换。既有模型画面经模拟器和开发者调试验证。 |
 | QA-05 | Littlest Tokyo 为 4,133,072 字节，随预览包分发会增加主包体积。此前把无资源立方体跑通当成 UI 联合验证，漏掉了原模型链路。 | GLB 放在同级资源服务器，由微信下载和版本缓存。立方体用于排错，验收 UI 时应同时保留原模型、动画和 OrbitControls，用模型构建补跑。开发者已确认旧基线的控件操作，统一入口后的新 bundle 待手动复测。 |
 | QA-06 | 普通扫码后可见背景或 HUD 但无模型，服务器可能也无 GET。此前手机在开启开发者调试后可加载局域网 HTTP 模型。 | 先看 `Cache hit` 和 `Download`，再查 HTTP、Wi-Fi、防火墙和域名配置。改资源清单的 `version` 验证冷下载，同一版本复测热缓存。开发者调试下的 LAN 结果已观察，关闭调试的 HTTPS 冷／热缓存待验。 |
@@ -42,7 +42,7 @@
 | QA-12 | 真机模型可见、蓝色 UI 按钮缺失，首条为 `[ThreeDraco] HUD initialization failed`，堆栈指向 Pixi 调度器的 `performance is not defined`。 | 在导入前保留可用计时器或补 `globalThis.performance.now()`，微信性能时钟微秒转换为毫秒，缺失时使用单调的本地时间差。仅增加全局 shim 后曾仍出错，构建随后将 Pixi 的裸引用映射到 `globalThis.performance`。开发者后续确认真机可点击，本地测试验证缺少自由变量绑定的运行环境。 |
 | QA-13 | 小游戏平台限制动态代码生成。Pixi 尝试运行浏览器侧动态生成的代码会阻断 HUD 初始化。 | 使用 Pixi 的 `pixi.js/unsafe-eval` 静态兼容模块，提供预定义函数。保留延迟加载和渲染状态切换，初始化或逐帧绘制失败时模型模式记录 HUD 错误并继续 3D。 |
 | QA-14 | 模拟器的 Graphics 正常，Pixi `Text` 字形纹理曾为空白。 | 计数和滑块数字用矢量 Graphics。原生 Text、BitmapText、字体与 Sprite 纹理分别作为待验能力，先做独立最小样本。 |
-| QA-15 | 模型与立方体以前各有启动入口，模型为 JS，尺寸和前后台处理易出现差异。历史锁文件还有旧试验的 Git+SSH 依赖。 | `src/main.ts` 统一启动入口。初期用 `MODEL_DEMO` 选场景，当前使用编译期 `BUILD_PROFILE`。依赖图确认旧实验未引用后已移除对应脚本和依赖，正常 JS Draco 工厂仍在模型包内。 |
+| QA-15 | 模型与立方体以前各有启动入口，模型为 JS，尺寸和前后台处理易出现差异。历史锁文件还有旧试验的 Git+SSH 依赖。 | 先将渲染及生命周期统一到 TypeScript 运行时，早期以 `MODEL_DEMO`、后续以 `BUILD_PROFILE` 选场景。目前 `scripts/targets.json` 直接选应用入口。正常 JS Draco 工厂仍在模型目标内。 |
 
 ## 4. 点击、释放、拖动和模拟器异常
 
@@ -53,6 +53,7 @@
 | QA-18 | 历史模型能拖动，开发者工具鼠标滚轮缩放未通过。 | 当前微信输入适配以触摸为主，滚轮仍未验收。真机单指转动和点按有历史反馈，双指缩放、触点取消和前后台组合需按设备矩阵记录。 |
 | QA-19 | 需要系统验证 Pixi 的可用能力和相机输入隔离。 | 扩展为计数按钮、开关、滑块、遮罩和整板拖动演示。顶部双线把手拖动面板，蓝色 `+` 按钮在有效释放时计数。开发者已确认此前操作通过，记录未附完整设备矩阵。新增 Text、Sprite、滚动或列表时逐项验收。 |
 | QA-20 | Pixi UI 真机仍显示立方体，但 HUD 弹窗报告 `ReferenceError: Intl is not defined`。Pixi 8.23 的 BitmapText 依赖在模块求值时读取 `Intl?.Segmenter`。 | 构建使用 `--define:Intl=globalThis.Intl`，让缺失 `Intl` 的宿主走 Pixi 自带的 Unicode 码点回退，原生 Segmenter 继续使用。删除 `Intl` 的 VM 中复现旧报错，修复后能进入渲染器初始化。无 `Intl` 的桌面软件 WebGL 已复测图片、数字及点击画面变化。开发者于 2026-11-23 确认真机复测通过，设备和基础库版本未记录。 |
+| QA-21 | 颜色匹配计时归零后，重开图标外出现白色斜线。Pixi `arc()` 接续当前路径，描边时将残留起点与圆弧起点连接。 | 圆弧前显式 `beginPath()`，模型失败重试图标同步处理。复测时检查蓝色按钮外的斜线、按钮内的图标和点按重开。 |
 
 ## 5. 验证分工与最短复测
 
@@ -69,6 +70,8 @@ Pixi UI 诊断验证 `wx.createImage` 包内路径、成功／失败／超时、
 开发者于 2026-11-23 确认 `build:app` 的配装台新增 UI 验收通过，未附设备、基础库和实测包大小。首页无图片读取、首入只读一次、重进复用及图片失败回退由桌面软件 WebGL 单独验证。[配装台验收](ARCHITECTURE_AND_USAGE.md#34-框架内部拆分验收)
 
 目录和构建目标整理后，19 项自动回归与七种构建通过。桌面软件 WebGL 以模拟微信输入读取实际 GPU 像素，验证配装台色块、颜色匹配计分、拖出取消、后台暂停、到时重开和重进。真实 GLB 在模拟微信文件、图片和下载接口中验证取消、503 重试、热缓存退出和场景释放。当前产物待开发者按业务和联合模型步骤在微信端复测。[颜色匹配验收](ARCHITECTURE_AND_USAGE.md#38-颜色匹配场景验收)
+
+独立目标迁移后，21 项自动回归与九条 npm 构建通过。先构建含图集的包，再构建基础包，确认 `dist/resources/` 消失。轻量 `showcase` 排除模型 HUD、GLB／Draco 与 WebGL2。软件 WebGL 复跑集成首页、独立配装台、独立颜色匹配和 Pixi 位图数字，真实 GLB 的取消、重试和退出也已复验。当前包由开发者复测微信端新图集路径和各独立入口。[框架可用性审核](FRAMEWORK_ARCHITECTURE.md#1-可用性结论)
 
 1. Agent 负责 `npm.cmd test`、构建、产物语法及依赖图检查，报告本轮实际验证范围。开发者负责微信工具的编译及操作、扫码和手机日志。
 2. 优先用模型包确认模型及动画同时可见。一次跑完蓝色按钮有效释放及拖出取消、开关、滑块、随面板移动的遮罩、拖动把手、面板外旋转模型。对照[完整 UI 验收表](ARCHITECTURE_AND_USAGE.md#4-ui-验收和扩展)。

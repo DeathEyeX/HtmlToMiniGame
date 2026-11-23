@@ -8,7 +8,7 @@ const { outputFiles: [bundle] } = buildSync({
   entryPoints: ['src/framework/assets/loadPackagedImage.ts'],
   bundle: true, format: 'cjs', write: false
 });
-const imagePath = 'media/pixi-ui-probe.png';
+const imagePath = 'dist/resources/pixi-ui-probe.png';
 
 function fixture() {
   const image = { width: 116, height: 32 };
@@ -25,7 +25,7 @@ function fixture() {
 }
 
 test('the package atlas matches its expected dimensions and resolves only after native decode', async () => {
-  const png = fs.readFileSync(imagePath);
+  const png = fs.readFileSync('media/pixi-ui-probe.png');
   assert.equal(png.toString('ascii', 12, 16), 'IHDR');
   assert.equal(png.readUInt32BE(16), 116);
   assert.equal(png.readUInt32BE(20), 32);
