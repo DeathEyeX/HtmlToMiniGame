@@ -5,15 +5,6 @@
   "main": "game.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "node scripts/build.cjs controls",
-    "build:model": "node scripts/build.cjs model-viewer",
-    "build:app": "node scripts/build.cjs showcase",
-    "build:app:model": "node scripts/build.cjs showcase-model",
-    "build:webgl2": "node scripts/build.cjs webgl2",
-    "build:webgl2:model": "node scripts/build.cjs webgl2-model",
-    "build:ui": "node scripts/build.cjs pixi-ui",
-    "build:workbench": "node scripts/build.cjs workbench",
-    "build:color-match": "node scripts/build.cjs color-match",
     "build:target": "node scripts/build.cjs",
     "build:list": "node scripts/build.cjs --list",
     "test": "node --test tests/*.test.cjs"

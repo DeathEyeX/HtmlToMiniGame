@@ -14,16 +14,16 @@
 - 真机日志显示 Pixi 调度器依赖 `performance.now()`。构建将 Pixi 使用的裸 `performance` 引用绑定到 `globalThis.performance`。启动时保留现有计时器，缺失时将微信原生时钟换算为毫秒，或使用单调递进的本地时间差。新包启动标记为 `[PixiHUD] clock-bridge-v2 function`。
 - 模型输入沿用 `WechatGamePlatform` 的原生订阅。HUD 仅在手势起点命中控件时接管该手势。自动回归使用真实 OrbitControls 验证了挂载 HUD 前后场景拖动都能改变相机，也覆盖了 HUD 按下、释放、拖出和取消。
 - 用户确认真机预览可以点击。开发者工具 Stable 1.06.2402030、基础库 3.17.6 的临时探针确认 iPhone 模拟模式把鼠标点按和拖动送入 `wx.onTouchStart/Move/End`。同一业务 bundle 在干净窗口中通过按钮计数、拖出释放和模型拖动。原项目旧窗口仍不响应，调试器此前显示异常。关闭原项目窗口并重新打开同一目录后，原工程复测按钮从 `+0` 到 `+1`，拖动改变相机视角。故障定位到旧模拟器会话，工具内部失效机制尚未确认。这次排查仅更新文档，无业务代码变更。
-- `npm run build:model` 保留原 GLB／Draco 加载路径，同时挂载 Pixi HUD，是模型与 UI 的联合验收入口。两个构建命令写入同一产物路径。HTTPS 大模型冷缓存、设备兼容范围和滚轮支持仍待验证。
+- `npm.cmd run build:target -- model-viewer` 保留原 GLB／Draco 加载路径，同时挂载 Pixi HUD，是模型与 UI 的联合验收入口。两个构建命令写入同一产物路径。HTTPS 大模型冷缓存、设备兼容范围和滚轮支持仍待验证。
 - Pixi 操作覆盖计数、开关、滑块、遮罩和整板拖动。此前首页与模型联合构建和 WebGL2 专项已获开发者确认。本轮 22 项自动回归和九种构建通过本地验证。
-- `npm.cmd run build:app:model` 提供配装台和真实模型入口，支持下载取消、失败重试、缓存失效和退出释放。
+- `npm.cmd run build:target -- showcase-model` 提供配装台和真实模型入口，支持下载取消、失败重试、缓存失效和退出释放。
 - `scripts/targets.json` 以 `renderer` 控制应用渲染路径，省略时使用 WebGL1。`webgl2` 和 `webgl2-model` 目标预设为 WebGL2。其他应用可以直接改目标设置，框架负责验证并创建共享上下文。[渲染配置](ARCHITECTURE_AND_USAGE.md#11-入口与渲染配置)
-- `build:ui` 使用包内 PNG 验证 Sprite 和 BitmapText。开发者已确认 `Intl` 修复通过真机验收。当前磁盘产物为 `build:app`，配装台用同一张图集绘制 `01`–`03` 色块，已获开发者验收。图片失败时保留矢量色块和交互。[配装台验收](ARCHITECTURE_AND_USAGE.md#34-框架内部拆分验收)
+- `pixi-ui` 目标使用包内 PNG 验证 Sprite 和 BitmapText。开发者已确认 `Intl` 修复通过真机验收。集成首页的配装台用同一张图集绘制 `01`–`03` 色块，已获开发者验收。图片失败时保留矢量色块和交互。[配装台验收](ARCHITECTURE_AND_USAGE.md#34-框架内部拆分验收)
 - 源码按 `src/framework/`、`src/game/apps/` 和 `src/game/common/` 归属。配装台与颜色匹配可独立运行，也可在 `showcase` 中进入。已在只保留必要公共模块的隔离工程验证新增应用流程，当前构建待开发者开展微信端回归。[目录与接入规则](FRAMEWORK_ARCHITECTURE.md#2-模块划分)
 
 ### 既有模型基线
 
-- 微信入口 `game.js` 加载 `dist/game.bundle.js`。`npm run build:model` 构建 `src/game/apps/model-viewer/main.ts`，它使用 `src/game/common/model-viewer/LittlestTokyo.ts`。该目标使用 `three-platformize@1.133.3` 的微信适配、WebGL1 和 PixiJS。
+- 微信入口 `game.js` 加载 `dist/game.bundle.js`。`npm.cmd run build:target -- model-viewer` 构建 `src/game/apps/model-viewer/main.ts`，它使用 `src/game/common/model-viewer/LittlestTokyo.ts`。该目标使用 `three-platformize@1.133.3` 的微信适配、WebGL1 和 PixiJS。
 - 模型模式依赖远程 Draco GLB。模型通过微信下载与文件 API 读入内存，由适配版 `GLTFLoader` 和静态打包的纯 JS Draco 解码器完成解析，再应用 Toon 材质并播放第一段动画。
 - 上次会话确认模拟器恢复显示，手机扫码后开启「开发者调试」可加载模型。下一道验收是手机关闭开发者调试后，使用已登记的 HTTPS 下载域名完成无缓存普通预览。这个条件仍待实测。
 - 本轮基于 `e709c0f`（`v1 架构`），初始提交为 `359a5aa`（`init`）。旧 JS 入口与试验可从 Git 查阅，本轮变更尚在工作区。
@@ -48,7 +48,7 @@
 
 下列设计用于解释首版取舍。当前实现和验证范围见 §3 与 §6。
 
-1. **保留现有打包入口，给 TypeScript 建立类型检查。** 继续用 `game.js` 加载 ES2019 IIFE。引入 `typescript` 与微信维护的 `minigame-api-typings`，配置 `strict` 与 `noEmit`，让 `npm run build` 先执行 `tsc --noEmit`，再由 esbuild 从 TypeScript 入口产出原路径的 JS。先迁移首屏入口及与它相连的模块，保留生成的 Draco 解码器 JS。当前 GLTFLoader 声明要求完整 `DRACOLoader`，实际分支调用 `decodeDracoFile`，需要在连接处收敛为一个明确的类型适配边界。Three.js 和 Pixi 的声明仍可能引用 DOM 类型，类型可见性与真机 API 可用性分别验证。[esbuild TypeScript 说明](https://esbuild.github.io/content-types/#typescript) · [微信小游戏 TypeScript 类型定义](https://github.com/wechat-miniprogram/minigame-api-typings)
+1. **保留现有打包入口，给 TypeScript 建立类型检查。** 继续用 `game.js` 加载 ES2019 IIFE。引入 `typescript` 与微信维护的 `minigame-api-typings`，配置 `strict` 与 `noEmit`，让 `npm.cmd run build:target -- controls` 先执行 `tsc --noEmit`，再由 esbuild 从 TypeScript 入口产出原路径的 JS。先迁移首屏入口及与它相连的模块，保留生成的 Draco 解码器 JS。当前 GLTFLoader 声明要求完整 `DRACOLoader`，实际分支调用 `decodeDracoFile`，需要在连接处收敛为一个明确的类型适配边界。Three.js 和 Pixi 的声明仍可能引用 DOM 类型，类型可见性与真机 API 可用性分别验证。[esbuild TypeScript 说明](https://esbuild.github.io/content-types/#typescript) · [微信小游戏 TypeScript 类型定义](https://github.com/wechat-miniprogram/minigame-api-typings)
 2. **单画布、单主循环，先验证共享 WebGL。** 启动模块创建唯一的上屏 Canvas、初始化平台与 Three 渲染器，并把同一 Canvas 与 WebGL 上下文交给 Pixi。每帧由同一处更新和调度 Three、Pixi，按 Three 后 Pixi 的顺序绘制。渲染器切换时各自重置 GL 状态，Pixi 关闭清屏，尺寸、DPR 和上下文生命周期由启动模块协调。网页原型的双 Canvas 叠层不能直接移植到小游戏。共享上下文是优先验证方案，指南只提供了集成方法，当前微信 WebGL1 组合仍需实测。[PixiJS 的 Three.js 混合渲染指南](https://pixijs.com/8.x/guides/third-party/mixing-three-and-pixi) · [腾讯云小游戏画布说明](https://intl.cloud.tencent.com/zh/document/product/1219/68063)
 3. **把 Pixi 环境和输入验证做成两步。** 先运行 Pixi 的最小图形和文本，使用定向 `DOMAdapter` 适配画布、图片及必要能力。锁定版本的共享上下文初始化依赖 WebGL 构造器判别，Canvas 还须支持上下文事件监听。再做点击和手势分流。Pixi 的 `EventSystem` 还直接访问 `globalThis.document`、`navigator` 和全局事件监听，Three 平台适配又已经自动转发 `wx.onTouch*`。优先用单一输入入口按逻辑坐标命中 UI，再把其余手势交给 3D 适配。触点从按下到结束应维持所属目标。若完整 Pixi 事件桥在首轮受阻，可用手动命中验证一个 Pixi 按钮，同时把通用 Pixi 事件适配保留为待验项。[PixiJS 自定义运行环境](https://pixijs.com/8.x/guides/concepts/environments)
 4. **保持少量清晰的模块边界。** 建议将启动与帧循环、微信平台能力、3D 场景、HUD 以及已有资源与解码分别归属具体模块。HUD 读取界面状态并发出按钮动作，场景负责模型渲染、相机和动画。暂以可替换的模块接口承载 UI 试验，公用组件、场景管理器、浏览器双目标或额外构建工具由实际需求驱动。
@@ -123,7 +123,7 @@
 | 本轮本地通过：构建与产物 | 22 项自动回归及九个构建通过，产物依赖和素材清单逐目标核对，bundle 均通过 ES2019 解析。默认 WebGL1 的 `showcase-model` JS 为 1,818,263 字节，图集为 402 字节。[完整尺寸](ARCHITECTURE_AND_USAGE.md#1-当前基线) |
 | 本轮单应用接入验证 | 在隔离工程只增加应用的入口、HUD 和一条目标映射。保留或删除无关应用均能构建，未引用的公共模块和图片未进入产物。软件 WebGL 验证立方体和自定义 Pixi HUD 同屏。 |
 | 目录重构与颜色匹配本地通过 | 软件 WebGL 使用模拟微信输入，验证配装台、颜色匹配、后台计时暂停、重开和重进。真实 GLB 的本地联调覆盖取消、503 重试、缓存和销毁。当前构建仍需微信工具和目标手机复测。 |
-| Pixi UI 诊断及配装台通过开发者验收 | 原 Pixi UI 诊断包的 `Intl` 修复已有真机通过反馈，`build:app` 的配装台新增 UI 也获开发者确认。首次读取、重进复用和图集加载失败由桌面软件 WebGL 单独验证。配装台验收未附机型、基础库和包分析。 |
+| Pixi UI 诊断及配装台通过开发者验收 | 原 Pixi UI 诊断包的 `Intl` 修复已有真机通过反馈，`showcase` 的配装台新增 UI 也获开发者确认。首次读取、重进复用和图集加载失败由桌面软件 WebGL 单独验证。配装台验收未附机型、基础库和包分析。 |
 | 本轮离线通过：模型链路 | 两份 Littlest Tokyo GLB 内容一致。使用真实 4,133,072 字节 GLB、真实加载及解码模块和模拟的微信下载、文件与图片接口，跑通冷加载及缓存命中，均得到 71 个网格、193,125 个顶点及动画 `Take 001`。图像接口覆盖到加载回调，实际 GPU 贴图显示由工具和真机复测。 |
 | 此前模拟器与 UI | 修复后工具可显示模型、材质与动画。同一 bundle 重开工具会话后输入恢复。计数、开关、滑块、遮罩及整板拖动已获开发者验证。 |
 | 上次用户验证通过：调试手机预览 | 手机开启「开发者调试」后可加载。设备型号、微信版本、基础库版本以及冷缓存/热缓存的完整测试记录待补。 |
@@ -158,7 +158,7 @@ curl.exe --noproxy '*' --connect-timeout 5 -I 'http://192.168.1.46:8080/model.gl
 Set-Location 'D:\Project\Web\ThreeJsTest\PixiWechatTest'
 # 仅首次安装依赖或需要恢复锁文件对应的依赖树时执行
 npm.cmd ci
-npm.cmd run build:model
+npm.cmd run build:target -- model-viewer
 Get-Item '.\dist\game.bundle.js'
 ```
 
@@ -198,7 +198,7 @@ Get-Item '.\dist\game.bundle.js'
 
 ## 9. 推荐任务与验收
 
-首版交付一个可复用的微信小游戏工程。另一位开发者拿到完整源码和锁文件后，可以执行 `npm ci`、`npm run build`，导入工程根目录，在微信开发者工具里看到可操作的 3D 场景及由 Pixi 绘制的按钮。默认演示无需资源服务器。以下任务保留实施步骤与完整验收口径。统一入口和两种构建已落地，新包的界面与设备验证见 §6。
+首版交付一个可复用的微信小游戏工程。另一位开发者拿到完整源码和锁文件后，可以执行 `npm ci`、`npm.cmd run build:target -- controls`，导入工程根目录，在微信开发者工具里看到可操作的 3D 场景及由 Pixi 绘制的按钮。默认演示无需资源服务器。以下任务保留实施步骤与完整验收口径。统一入口和两种构建已落地，新包的界面与设备验证见 §6。
 
 | 任务 | 优先级 | 依赖 | 可交付结果 |
 | --- | --- | --- | --- |
@@ -215,7 +215,7 @@ Get-Item '.\dist\game.bundle.js'
 ### T01 · 固定现有 3D 回归基线
 
 1. 保留 `e709c0f` 历史证据和当前工作区差异，保障 `src/main.ts`、`src/game/common/model-viewer/LittlestTokyo.ts`、现有解码器、材质、资源代码及依赖锁可恢复。
-2. 用 `npm.cmd run build:model` 重新核对 `game.js → dist/game.bundle.js`。按 §7.1 至 §7.3 复跑模拟器及可用的调试手机预览，记录构建体积、基础库和首个失败阶段。用新测试缓存版本和原版本分别检查冷下载与热缓存。
+2. 用 `npm.cmd run build:target -- model-viewer` 重新核对 `game.js → dist/game.bundle.js`。按 §7.1 至 §7.3 复跑模拟器及可用的调试手机预览，记录构建体积、基础库和首个失败阶段。用新测试缓存版本和原版本分别检查冷下载与热缓存。
 
 **验收要求**为可复现当前构建，模拟器看到模型、贴图、Toon 和动画。场景日志预计为 71 个网格、193,125 个顶点、1 段动画。若当次设备或服务器不可用，记录已验证范围及缺失证据，从已确认的构建和离线解码基线继续做 T02。
 
@@ -225,7 +225,7 @@ Get-Item '.\dist\game.bundle.js'
 2. 保留 `game.js`、ES2019 IIFE 和开发者工具的 `es6: false`。首轮可从 TypeScript 入口调用旧场景验证兼容。对旧 JavaScript 模块采用小范围类型声明或适配，按业务入口迁移。生成的 Draco decoder 继续保留 JavaScript。
 3. 用一个临时类型错误验收构建失败，再恢复代码重建。在干净副本按锁文件安装并复测，无用 Git 依赖已经移除。
 
-**验收要求**为 `npm run build` 在 TypeScript 型检失败时返回非零且停止打包。恢复后正常生成 ES2019 产物，开发者工具成功执行 TypeScript 入口的启动逻辑。
+**验收要求**为 `npm.cmd run build:target -- controls` 在 TypeScript 型检失败时返回非零且停止打包。恢复后正常生成 ES2019 产物，开发者工具成功执行 TypeScript 入口的启动逻辑。
 
 ### T03 · 实现无资源加载的 Three 首屏
 
@@ -288,4 +288,4 @@ Sky/PMREM、完整 UI 组件库、玩法和现代 Three.js 升级在框架首版
 
 1. **正式目标。** 确认具体要发布的应用入口与使用的 AppID，并按实际资源列出目标清单。
 2. **兼容范围。** 确认 iOS、Android 代表机型与最低微信基础库。用当前 WebGL1 业务包和 WebGL2 专项分别记录支持情况。
-3. **产物和发布。** 建议把 `npm run build` 作为生成入口，是否继续跟踪 `dist/game.bundle.js` 由仓库分发方式决定。需要关闭调试的普通扫码交付时，再确认 HTTPS 托管与 AppID 域名配置负责人。
+3. **产物和发布。** 建议把 `npm.cmd run build:target -- controls` 作为生成入口，是否继续跟踪 `dist/game.bundle.js` 由仓库分发方式决定。需要关闭调试的普通扫码交付时，再确认 HTTPS 托管与 AppID 域名配置负责人。

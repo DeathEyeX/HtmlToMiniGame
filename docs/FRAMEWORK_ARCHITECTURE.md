@@ -41,7 +41,7 @@ dist/                            生成的 bundle 和选定素材
 
 ### 2.3 构建入口
 
-`scripts/targets.json` 对每个目标指定一个入口。本地执行 `npm.cmd run build:list` 查入口，使用 `npm.cmd run build:target -- <目标名>` 构建。日常别名见使用指南。每目标类型检查只验证其入口的依赖和项目声明，`npm.cmd run typecheck` 执行全仓检查。产物固定由 `game.js` 加载，微信工具切换目标时重新编译。[目标与命令](ARCHITECTURE_AND_USAGE.md#1-当前基线)
+`scripts/targets.json` 对每个目标指定一个入口。本地执行 `npm.cmd run build:list` 查入口，使用 `npm.cmd run build:target -- <目标名>` 构建。每目标类型检查只验证其入口的依赖和项目声明，`npm.cmd run typecheck` 执行全仓检查。产物固定由 `game.js` 加载，微信工具切换目标时重新编译。[目标与命令](ARCHITECTURE_AND_USAGE.md#1-当前基线)
 
 只有目标入口可达的代码进入 bundle。模型查看和 WebGL2 分别在需要的构建中装配。延迟 `import()` 用于推迟初始化，在单文件 IIFE 中仍属于同一产物。可按需从具体功能导入公共模块，避免全量注册产生额外依赖。[esbuild Tree Shaking](https://esbuild.github.io/api/#tree-shaking)
 
@@ -62,7 +62,7 @@ dist/                            生成的 bundle 和选定素材
 
 | 状态 | 检查 |
 | --- | --- |
-| 本地通过 | 九个 npm 构建命令、ES2019 语法、目标素材清单、渲染器隔离、严格类型检查与 22 项自动测试。 |
+| 本地通过 | 九个框架回归目标的构建、ES2019 语法、目标素材清单、渲染器隔离、严格类型检查与 22 项自动测试。 |
 | 本地通过 | 软件 WebGL 下，集成首页和独立目标的配装台、颜色匹配、Pixi Sprite 和位图数字；有模型首页使用真实 GLB 验证加载、取消、失败重试和缓存退出。 |
 | 微信端待复测 | 在微信工具和目标手机核对新目录构建后的交互、图集新路径、两个独立入口及模型联合构建。记录实际包文件与字节数。 |
 | 发布待验收 | 配置正式 AppID 和 HTTPS 下载域名，关闭开发者调试后验证模型冷下载和热缓存。按设备记录首屏及首次入场时间。 |
@@ -83,6 +83,6 @@ dist/                            生成的 bundle 和选定素材
 
 ### 6.3 开发目标选择建议
 
-下一步可增加交互式 `npm run dev`。从 `scripts/targets.json` 读取目标，按业务和诊断分组显示可读名称，选择后调用同一个构建器，并显示实际入口及产物。自动化继续传入具体目标名，旧命令复用同一映射。正式项目可用 `build:release` 固定发布目标。应用内的多场景切换由该应用自己的导航提供。
+下一步可增加交互式开发菜单。从 `scripts/targets.json` 读取目标，按业务和诊断分组显示可读名称，选择后调用同一个构建器，并显示实际入口及产物。自动化和正式发布通过 `build:target` 传入确认的目标名。应用内的多场景切换由该应用自己的导航提供。
 
 菜单可以同时展示目标的 `renderer`。当前命令 `build:list` 已显示目标、渲染器和入口。WebGL2 构建映射与框架的启动分支读取同一个 `renderer` 值。[入口与渲染配置](ARCHITECTURE_AND_USAGE.md#11-入口与渲染配置)

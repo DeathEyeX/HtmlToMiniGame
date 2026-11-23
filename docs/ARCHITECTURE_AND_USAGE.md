@@ -30,9 +30,9 @@
 
 例如，要让已有的集成首页改用 WebGL2，在 `showcase` 条目的 `renderer` 字段填入 `"webgl2"`，然后执行 `npm.cmd run build:target -- showcase`，在微信工具点「编译」。设备无法创建或验证 WebGL2 时，应用报告启动错误。WebGL1 目标的构建产物排除 WebGL2 探针。`webgl2-model` 是一个预设了 `"renderer": "webgl2"` 的独立模型目标。
 
-### 1.2 兼容命令
+### 1.2 旧命令迁移
 
-`package.json` 保留了固定目标的 npm 别名，供既有操作和脚本继续使用。例如 `npm.cmd run build:app:model` 与 `npm.cmd run build:target -- showcase-model` 都执行 `node scripts/build.cjs showcase-model`，共用 TypeScript 入口、构建选项、素材清单和产物路径。本指南统一使用 `build:target -- <目标名>`。新增应用只需登记目标，无需增加对应的 npm 别名。
+构建统一使用 `npm.cmd run build:target -- <目标名>`。把旧脚本中固定目标的别名换成上表对应的命令。例如 `build:app:model` 改为 `npm.cmd run build:target -- showcase-model`。新增应用在 `scripts/targets.json` 登记目标即可。
 
 ## 2. 运行架构
 
