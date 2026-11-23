@@ -3,9 +3,10 @@ import {
   PerspectiveCamera, sRGBEncoding, type Object3D, type Scene
 } from 'three-platformize';
 import { OrbitControls } from 'three-platformize/examples/jsm/controls/OrbitControls';
-import { loadModelGLB, collectModelAssets } from '../assets/loadModelGLB';
-import { ModelLoadAttempt } from '../assets/ModelLoadAttempt';
-import { applyAnimeToon } from '../rendering/AnimeToonMaterial.js';
+import { loadModelGLB, collectModelAssets } from '../../../framework/assets/model/loadModelGLB';
+import { ModelLoadAttempt } from '../../../framework/assets/model/ModelLoadAttempt';
+import { applyAnimeToon } from './AnimeToonMaterial.js';
+import { littlestTokyoAsset } from './modelAsset';
 
 export type ModelStatus =
   | { stage: 'loading'; progress: number }
@@ -62,7 +63,7 @@ export function createLittlestTokyoScene(
       fail(error);
     });
     try {
-      const { gltf, save } = await loadModelGLB('littlestTokyo', attempt, (progress) => {
+      const { gltf, save } = await loadModelGLB(littlestTokyoAsset, attempt, (progress) => {
         if (current === attempt) publish({ stage: 'loading', progress });
       });
       const loaded = collectModelAssets(gltf);

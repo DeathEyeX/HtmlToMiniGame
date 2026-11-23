@@ -1,49 +1,41 @@
-import { startGame } from './runtime/startGame';
+type BuildProfile = 'basic' | 'model' | 'app' | 'app-model' | 'webgl2' | 'webgl2-model' | 'pixi-ui';
 
-declare const MODEL_DEMO: boolean;
-declare const APP_DEMO: boolean;
-declare const WEBGL2_DIAGNOSTIC: boolean;
-declare const UI_DIAGNOSTIC: boolean;
+declare const BUILD_PROFILE: BuildProfile;
 
 async function main() {
-  const createWebGL2Renderer = WEBGL2_DIAGNOSTIC
-    ? (await import('./diagnostics/webGL2')).createWebGL2Renderer
-    : undefined;
-  if (APP_DEMO) {
-    const { startApp } = await import('./app/startApp');
-    await startApp();
-  } else if (MODEL_DEMO) {
-    console.log('[ThreeDraco] Starting');
-    await startGame(async (scene, _renderer, canvas) => {
-      const { createLittlestTokyoScene } = await import('./scenes/LittlestTokyo');
-      return createLittlestTokyoScene(scene, canvas, undefined, WEBGL2_DIAGNOSTIC);
-    }, {
-      tag: '[ThreeDraco]',
-      hudReadyMessage: 'Pixi HUD initialized',
-      showHudErrorModal: WEBGL2_DIAGNOSTIC,
-      createWebGL2Renderer
-    });
-  } else {
-    await startGame(async (scene, _renderer, canvas) => {
-      const { createCubeScene } = await import('./scenes/Cube');
-      return createCubeScene(scene, canvas);
-    }, {
-      tag: UI_DIAGNOSTIC ? '[PixiUI]' : '[Framework]',
-      hudReadyMessage: 'Three and Pixi initialized',
-      showHudErrorModal: true,
-      createWebGL2Renderer
-    }, UI_DIAGNOSTIC
-      ? async () => (await import('./diagnostics/pixiUI')).createPixiUIDiagnostics
+  if (BUILD_PROFILE === 'app' || BUILD_PROFILE === 'app-model') {
+    const { startGameApp } = await import('./game/startGameApp');
+    await startGameApp(BUILD_PROFILE === 'app-model'
+      ? async () => (await import('./game/scenes/littlest-tokyo/LittlestTokyo')).createLittlestTokyoScene
       : undefined);
+  } else if (BUILD_PROFILE === 'model') {
+    const { startModel } = await import('./examples/model/startModel');
+    await startModel();
+  } else if (BUILD_PROFILE === 'webgl2' || BUILD_PROFILE === 'webgl2-model') {
+    const { createWebGL2Renderer } = await import('./examples/webgl2/webGL2');
+    if (BUILD_PROFILE === 'webgl2-model') {
+      const { startModel } = await import('./examples/model/startModel');
+      await startModel(createWebGL2Renderer);
+    } else {
+      const { startBasic } = await import('./examples/basic/startBasic');
+      await startBasic(createWebGL2Renderer);
+    }
+  } else if (BUILD_PROFILE === 'pixi-ui') {
+    const { startPixiUI } = await import('./examples/pixi-ui/startPixiUI');
+    await startPixiUI();
+  } else {
+    const { startBasic } = await import('./examples/basic/startBasic');
+    await startBasic();
   }
 }
 
 main().catch((error: unknown) => {
-  if (WEBGL2_DIAGNOSTIC) {
+  if (BUILD_PROFILE === 'webgl2' || BUILD_PROFILE === 'webgl2-model') {
     console.error('[WebGL2] Startup failed', error);
     wx.showModal({ title: 'WebGL2 诊断失败', content: String(error), showCancel: false });
-  } else if (MODEL_DEMO && !APP_DEMO) console.error('[ThreeDraco] Fatal error', error);
-  else {
+  } else if (BUILD_PROFILE === 'model') {
+    console.error('[ThreeDraco] Fatal error', error);
+  } else {
     console.error('[Framework] Initialization failed', error);
     wx.showModal({ title: 'Initialization failed', content: String(error), showCancel: false });
   }

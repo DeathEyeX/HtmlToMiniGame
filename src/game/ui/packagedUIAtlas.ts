@@ -1,6 +1,6 @@
 import { BitmapFont, BitmapText, Cache, ImageSource, Rectangle, Texture, type BitmapFontData } from 'pixi.js';
 import 'pixi.js/text-bitmap';
-import { loadPackagedImage } from '../assets/loadPackagedImage';
+import { loadPackagedImage } from '../../framework/assets/loadPackagedImage';
 
 const imagePath = 'media/pixi-ui-probe.png';
 const fontFamily = 'PackagedDigits';

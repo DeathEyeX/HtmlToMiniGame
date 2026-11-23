@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const { buildSync } = require('esbuild');
 
 const { outputFiles: [bundle] } = buildSync({
-  entryPoints: ['src/assets/loadPackagedImage.ts'],
+  entryPoints: ['src/framework/assets/loadPackagedImage.ts'],
   bundle: true, format: 'cjs', write: false
 });
 const imagePath = 'media/pixi-ui-probe.png';

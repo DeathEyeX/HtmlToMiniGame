@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite } from 'pixi.js';
-import { loadPackagedUIAtlas } from '../ui/packagedUIAtlas';
-import type { CreateHudView } from '../ui/PixiHud';
+import { loadPackagedUIAtlas } from '../../game/ui/packagedUIAtlas';
+import type { CreateHudView } from '../../framework/ui/PixiHud';
 
 export const createPixiUIDiagnostics: CreateHudView = async (stage, width, height) => {
   const atlas = await loadPackagedUIAtlas();

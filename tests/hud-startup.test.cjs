@@ -11,9 +11,9 @@ const define = Object.fromEntries(Array.from(
 const { outputFiles: [bundle] } = buildSync({
   stdin: {
     contents: `
-      export { loadHud } from "./src/ui/loadHud";
+      export { loadHud } from "./src/framework/ui/loadHud";
       export async function loadPixiUIDiagnostics() {
-        return (await import("./src/diagnostics/pixiUI")).createPixiUIDiagnostics;
+        return (await import("./src/examples/pixi-ui/pixiUI")).createPixiUIDiagnostics;
       }
       export async function schedule() {
         const { SchedulerSystem } = await import("pixi.js");

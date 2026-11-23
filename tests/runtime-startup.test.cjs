@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const { buildSync } = require('esbuild');
 
 const { outputFiles: [bundle] } = buildSync({
-  entryPoints: ['src/runtime/startGame.ts'],
+  entryPoints: ['src/framework/runtime/startGame.ts'],
   bundle: true,
   format: 'cjs',
   target: 'es2019',

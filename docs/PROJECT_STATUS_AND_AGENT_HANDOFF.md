@@ -8,21 +8,22 @@
 
 ### 本轮实现状态
 
-- `npm run build` 与 `npm run build:model` 均由唯一的 `src/main.ts` 严格型检并生成 ES2019 包。`MODEL_DEMO` 在构建期选择立方体或 `src/scenes/LittlestTokyo.ts`。默认包排除 GLB、资源加载器和 Draco。
+- 七个构建均由唯一的 `src/main.ts` 严格型检并生成 ES2019 包，由 `BUILD_PROFILE` 在编译期选择启动目标。默认包排除 GLB 加载器和 Draco。
 - 微信开发者工具 Stable 1.06.2402030 已显示旋转立方体和 Pixi 矢量计数按钮。微信限制动态代码生成，HUD 使用 Pixi 提供的静态兼容模块。文字纹理在该模拟器上未显示，示例计数改为矢量数字。微信触摸路由通过自动回归，统一入口后的新包待开发者手动复测。
-- 真机微信基础库 3.17.6 上报告了 `navigator is not defined`。Pixi 会在模块求值阶段读取默认浏览器适配器，先前的 `DOMAdapter.set` 执行过晚。共享入口调用 `src/ui/loadHud.ts` 先补齐缺失的 `navigator`，再延迟初始化 Pixi。在无浏览器全局的 VM 环境复现并验证了启动顺序。
+- 真机微信基础库 3.17.6 上报告了 `navigator is not defined`。Pixi 会在模块求值阶段读取默认浏览器适配器，先前的 `DOMAdapter.set` 执行过晚。共享入口调用 `src/framework/ui/loadHud.ts` 先补齐缺失的 `navigator`，再延迟初始化 Pixi。在无浏览器全局的 VM 环境复现并验证了启动顺序。
 - 真机日志显示 Pixi 调度器依赖 `performance.now()`。构建将 Pixi 使用的裸 `performance` 引用绑定到 `globalThis.performance`。启动时保留现有计时器，缺失时将微信原生时钟换算为毫秒，或使用单调递进的本地时间差。新包启动标记为 `[PixiHUD] clock-bridge-v2 function`。
 - 模型输入沿用 `WechatGamePlatform` 的原生订阅。HUD 仅在手势起点命中控件时接管该手势。自动回归使用真实 OrbitControls 验证了挂载 HUD 前后场景拖动都能改变相机，也覆盖了 HUD 按下、释放、拖出和取消。
 - 用户确认真机预览可以点击。开发者工具 Stable 1.06.2402030、基础库 3.17.6 的临时探针确认 iPhone 模拟模式把鼠标点按和拖动送入 `wx.onTouchStart/Move/End`。同一业务 bundle 在干净窗口中通过按钮计数、拖出释放和模型拖动。原项目旧窗口仍不响应，调试器此前显示异常。关闭原项目窗口并重新打开同一目录后，原工程复测按钮从 `+0` 到 `+1`，拖动改变相机视角。故障定位到旧模拟器会话，工具内部失效机制尚未确认。这次排查仅更新文档，无业务代码变更。
 - `npm run build:model` 保留原 GLB／Draco 加载路径，同时挂载 Pixi HUD，是模型与 UI 的联合验收入口。两个构建命令写入同一产物路径。HTTPS 大模型冷缓存、设备兼容范围和滚轮支持仍待验证。
-- Pixi 面板覆盖计数、开关、滑块透明度、遮罩裁剪和整板拖动，首页与模型联合构建和 WebGL2 专项已获开发者确认。本轮 17 项自动回归和七种模式的构建通过。
+- Pixi 操作案例覆盖计数、开关、滑块透明度、遮罩裁剪和整板拖动。此前首页与模型联合构建和 WebGL2 专项已获开发者确认。本轮 19 项自动回归和七种构建通过本地验证。
 - `npm.cmd run build:app:model` 提供配装台和真实模型入口，支持下载取消、失败重试、缓存失效和退出释放。
 - `build:webgl2` 和 `build:webgl2:model` 分别验证立方体和模型的 WebGL2 组合。业务模式继续使用 WebGL1。
-- `build:ui` 使用包内 PNG 验证 Sprite 和 BitmapText。开发者已确认 `Intl` 修复通过真机验收。当前磁盘产物为 `build:app`，配装台首次进入时读取同一张图集，使用 Sprite 和位图数字绘制 `01`–`03` 色块，图片失败时保留矢量色块和交互。[配装台验收](ARCHITECTURE_AND_USAGE.md#34-框架内部拆分验收)
+- `build:ui` 使用包内 PNG 验证 Sprite 和 BitmapText。开发者已确认 `Intl` 修复通过真机验收。当前磁盘产物为 `build:app`，配装台用同一张图集绘制 `01`–`03` 色块，已获开发者验收。图片失败时保留矢量色块和交互。[配装台验收](ARCHITECTURE_AND_USAGE.md#34-框架内部拆分验收)
+- 源码已整理为 `src/framework/`、`src/game/` 和 `src/examples/`。`build:app` 已接入限时颜色匹配，新增玩法只改了业务文件，微信端回归和发布验收待执行。[目录和推进顺序](FRAMEWORK_ARCHITECTURE.md#2-模块划分)
 
 ### 既有模型基线
 
-- 微信入口 `game.js` 加载 `dist/game.bundle.js`。`npm run build:model` 从 `src/main.ts` 生成模型联调包，执行 `src/scenes/LittlestTokyo.ts` 场景。当前构建使用 `three-platformize@1.133.3` 的微信适配和 WebGL1，并包含 PixiJS 及其依赖。
+- 微信入口 `game.js` 加载 `dist/game.bundle.js`。`npm run build:model` 从 `src/main.ts` 生成模型联调包，执行 `src/game/scenes/littlest-tokyo/LittlestTokyo.ts` 场景。当前构建使用 `three-platformize@1.133.3` 的微信适配和 WebGL1，并包含 PixiJS 及其依赖。
 - 模型模式依赖远程 Draco GLB。模型通过微信下载与文件 API 读入内存，由适配版 `GLTFLoader` 和静态打包的纯 JS Draco 解码器完成解析，再应用 Toon 材质并播放第一段动画。
 - 上次会话确认模拟器恢复显示，手机扫码后开启「开发者调试」可加载模型。下一道验收是手机关闭开发者调试后，使用已登记的 HTTPS 下载域名完成无缓存普通预览。这个条件仍待实测。
 - 本轮基于 `e709c0f`（`v1 架构`），初始提交为 `359a5aa`（`init`）。旧 JS 入口与试验可从 Git 查阅，本轮变更尚在工作区。
@@ -82,15 +83,15 @@
 | `project.config.json`、`project.private.config.json` | `compileType: game`，当前基础库配置为 `latest`。公开配置的 AppID 用于导入，私有配置只覆盖项目名。当前 `es6: false`、`minified: true`、`urlCheck: false`。打包忽略 `node_modules`、`src`、`assets`、`.git`、两个 npm 清单文件。源码更新后须重新生成 bundle。 |
 | `package.json`、`package-lock.json` | esbuild 锁定 0.28.2，构建参数固定为浏览器平台、IIFE、压缩、ES2019，并将 `fs` 和 `path` 标为外部模块。运行依赖锁定 `three-platformize@1.133.3` 和 `pixi.js@8.23.0`。已移除旧实验遗留的独立 `three`、`draco3d` 和 Git 适配包。 |
 | `src/main.ts` | 应用唯一入口。选择立方体或模型场景后调用共享运行时。 |
-| `src/runtime/startGame.ts` | 创建 Canvas、平台和渲染器，调度相机、场景更新及 HUD，处理尺寸和前后台。DPR 上限 2，动画步长上限 0.05 秒。 |
-| `src/scenes/Cube.ts` | 无外部资源的几何回归场景。 |
-| `src/scenes/LittlestTokyo.ts` | 配置模型相机、灯光、sRGB 和 ACES。异步加载 GLB，位置 `(1, 1, 0)`，缩放 `0.01`，默认播放首段动画。通过 `update(delta)` 将 Mixer 接入共享帧循环。 |
+| `src/framework/runtime/startGame.ts` | 创建 Canvas、平台和渲染器，调度相机、场景更新及 HUD，处理尺寸和前后台。DPR 上限 2，动画步长上限 0.05 秒。 |
+| `src/game/scenes/home/Cube.ts` | 无外部资源的几何回归场景。 |
+| `src/game/scenes/littlest-tokyo/LittlestTokyo.ts` | 配置模型相机、灯光、sRGB 和 ACES。异步加载 GLB，位置 `(1, 1, 0)`，缩放 `0.01`，默认播放首段动画。通过 `update(delta)` 将 Mixer 接入共享帧循环。 |
 | `node_modules/three-platformize/src/WechatGamePlatform/index.js` | 为库提供 Canvas、最小 DOM、图片、Blob/URL、XHR 等适配。内部绑定 `wx.onTouchStart/Move/End`，向 Canvas 派发触摸和部分指针事件。GLB 内嵌纹理也依赖该平台的图片和 Blob/URL 路径。应用层应复用该事件桥接，避免重复转发。 |
-| `src/assets/modelCatalog.ts`、`loadModelGLB.ts`、`WechatAssetLoader.js` | 资源 ID 对应 URL 与版本。优先读微信持久缓存，校验 ArrayBuffer、GLB 头和声明长度，下载须 HTTP 200。解析桥把 Draco 拒绝传入失败回调。GLB 解析通过后才持久化，复制失败只告警，继续展示本次模型。 |
-| `src/draco/WechatDracoLoader.js`、`src/draco/draco_decoder.js` | 解码工厂随主包静态导入，首次解码时初始化实例级 Promise。适配版 GLTFLoader 以 `decodeDracoFile(buffer, callback, attributeIDs, attributeTypes)` 调用。实现按 Draco unique ID 读顶点属性，支持 mesh 和 point cloud 分支，mesh 按顶点数选择 16/32 位索引，有 position 时计算包围盒和包围球，并释放解码器、解码缓冲、几何对象和临时数组。当前顶点属性统一输出 Float32，`attributeTypes` 仅作为接口参数传递。 |
-| `src/rendering/AnimeToonMaterial.js` | 把 MeshStandardMaterial 转成 MeshToonMaterial，支持材质数组，保留基础色、贴图、透明、顶点色及深度等关键设置。用共享 5×1、最近邻过滤、无 mipmap 的 `LuminanceFormat` 渐变纹理。Mesh 上设置投射和接收阴影，主场景的阴影开关目前未配置。 |
+| `src/game/scenes/littlest-tokyo/modelAsset.ts`、`src/framework/assets/model/` | 场景指定 URL、缓存键和版本。加载器优先读微信持久缓存，校验 ArrayBuffer、GLB 头和声明长度，下载须 HTTP 200。解析桥把 Draco 拒绝传入失败回调。GLB 解析通过后才持久化，复制失败只告警，继续展示本次模型。 |
+| `src/framework/assets/model/draco/WechatDracoLoader.js`、`src/framework/assets/model/draco/draco_decoder.js` | 解码工厂随主包静态导入，首次解码时初始化实例级 Promise。适配版 GLTFLoader 以 `decodeDracoFile(buffer, callback, attributeIDs, attributeTypes)` 调用。实现按 Draco unique ID 读顶点属性，支持 mesh 和 point cloud 分支，mesh 按顶点数选择 16/32 位索引，有 position 时计算包围盒和包围球，并释放解码器、解码缓冲、几何对象和临时数组。当前顶点属性统一输出 Float32，`attributeTypes` 仅作为接口参数传递。 |
+| `src/game/scenes/littlest-tokyo/AnimeToonMaterial.js` | 把 MeshStandardMaterial 转成 MeshToonMaterial，支持材质数组，保留基础色、贴图、透明、顶点色及深度等关键设置。用共享 5×1、最近邻过滤、无 mipmap 的 `LuminanceFormat` 渐变纹理。Mesh 上设置投射和接收阴影，主场景的阴影开关目前未配置。 |
 
-当前资源配置在 `src/assets/modelCatalog.ts` 的 `littlestTokyo`。URL 为 `http://192.168.1.46:8080/model.glb`，`cacheKey` 为 `littlest-tokyo`，`version` 为 `network-test-v3`。默认缓存文件名为 `littlest-tokyo-network-test-v3.glb`。当前样本是自包含 GLB，解析参数的基础路径为空字符串。将来换成带外链纹理或缓冲区的资源时，需要明确相对路径如何解析与下载。
+当前资源配置在 `src/game/scenes/littlest-tokyo/modelAsset.ts` 的 `littlestTokyoAsset`。URL 为 `http://192.168.1.46:8080/model.glb`，`cacheKey` 为 `littlest-tokyo`，`version` 为 `network-test-v3`。默认缓存文件名为 `littlest-tokyo-network-test-v3.glb`。当前样本是自包含 GLB，解析参数的基础路径为空字符串。将来换成带外链纹理或缓冲区的资源时，需要明确相对路径如何解析与下载。
 
 ## 4. 从网页到小游戏的方案演进
 
@@ -113,14 +114,15 @@
 | 点击预览时打包失败 | 旧 ES2020 bundle 残留 `?.` 和 `??`，预览压缩器首先在 `onProgress?.(...)` 附近报错。构建现在固定 `--target=es2019`，由 esbuild 转换这些语法。 |
 | 预览包生成后手机模型未加载 | 上次用户观察到局域网 HTTP 在手机开启「开发者调试」后可加载。现象与微信的下载域名检查吻合。没有服务器 GET 还可能是命中缓存、局域网不通或请求前被拦截，须结合手机端下载/缓存日志和冷启动验证。当前 URL 仍是私网 HTTP，正式口径需以 HTTPS 登记域名和关闭调试的实测为准。[腾讯云小程序平台网络指南](https://main.qcloudimg.com/raw/document/product/pdf/1593_91178_cn.pdf) · [腾讯云小游戏网络说明](https://staticintl.cloudcachetci.com/doc/pdf/product/tencent-cloud_1219_60585_zh.pdf) |
 
-历史 JS 入口的修复已迁入 `src/main.ts` 和 `src/scenes/LittlestTokyo.ts`。Pixi 初始化和输入的故障也已收录。[QA 文档](QA.md)
+历史 JS 入口的修复已迁入 `src/main.ts` 和 `src/game/scenes/littlest-tokyo/LittlestTokyo.ts`。Pixi 初始化和输入的故障也已收录。[QA 文档](QA.md)
 
 ## 6. 验证状态
 
 | 状态 | 证据或待验项 |
 | --- | --- |
-| 本轮本地通过：构建与产物 | 17 项自动测试和七种模式的构建通过，全部产物及 `game.js` 通过 ES2019 语法解析。磁盘业务 JS 为 1,102,440 字节，共用图集为 402 字节。完整尺寸见[架构与使用指南](ARCHITECTURE_AND_USAGE.md#1-当前基线)。 |
-| Pixi UI 诊断真机通过，配装台本地通过 | 开发者确认修复 `Intl` 后，原 Pixi UI 诊断包真机验收通过。新增配装台编号色块已用软件 WebGL 验证画面和完整操作，包含首次读取、重进复用和图集加载失败；微信工具和真机待复测。 |
+| 本轮本地通过：构建与产物 | 19 项自动测试和七种模式通过构建及依赖图检查，全部产物及 `game.js` 通过 ES2019 语法解析。磁盘业务 JS 为 1,106,023 字节，共用图集为 402 字节。完整尺寸见[架构与使用指南](ARCHITECTURE_AND_USAGE.md#1-当前基线)。 |
+| 目录重构与颜色匹配本地通过 | 软件 WebGL 使用模拟微信输入，验证配装台、颜色匹配、后台计时暂停、重开和重进。真实 GLB 的本地联调覆盖取消、503 重试、缓存和销毁。当前构建仍需微信工具和目标手机复测。 |
+| Pixi UI 诊断及配装台通过开发者验收 | 原 Pixi UI 诊断包的 `Intl` 修复已有真机通过反馈，`build:app` 的配装台新增 UI 也获开发者确认。首次读取、重进复用和图集加载失败由桌面软件 WebGL 单独验证。配装台验收未附机型、基础库和包分析。 |
 | 本轮离线通过：模型链路 | 两份 Littlest Tokyo GLB 内容一致。使用真实 4,133,072 字节 GLB、真实加载及解码模块和模拟的微信下载、文件与图片接口，跑通冷加载及缓存命中，均得到 71 个网格、193,125 个顶点及动画 `Take 001`。图像接口覆盖到加载回调，实际 GPU 贴图显示由工具和真机复测。 |
 | 此前模拟器与 UI | 修复后工具可显示模型、材质与动画。同一 bundle 重开工具会话后输入恢复。计数、开关、滑块、遮罩及整板拖动已获开发者验证。 |
 | 上次用户验证通过：调试手机预览 | 手机开启「开发者调试」后可加载。设备型号、微信版本、基础库版本以及冷缓存/热缓存的完整测试记录待补。 |
@@ -143,7 +145,7 @@ python -m http.server 8080 --bind 0.0.0.0 --directory '.\WechatAssetServer'
 
 保持资源服务器终端运行，`Ctrl+C` 可停止。`WechatAssetServer` 是同级静态文件目录。若文件缺失，可从 `littlest-tokyo-vite/public/models/LittlestTokyo.glb` 复制为该目录的 `model.glb`。网页副本也缺失时，在 `littlest-tokyo-vite` 安装依赖并执行 `npm.cmd run assets`，该脚本从上游下载资源。
 
-另开终端执行以下命令，验证 HTTP 200 及当前模型长度。随后用同一 Wi-Fi 的手机访问同一 URL，排除 Windows 入站防火墙、访客 Wi-Fi 隔离、VPN、地址变化或端口冲突。以 `ipconfig` 中手机可达的网卡 IPv4 为准。地址变动时调整资源清单的 `littlestTokyo.url` 并重建。
+另开终端执行以下命令，验证 HTTP 200 及当前模型长度。随后用同一 Wi-Fi 的手机访问同一 URL，排除 Windows 入站防火墙、访客 Wi-Fi 隔离、VPN、地址变化或端口冲突。以 `ipconfig` 中手机可达的网卡 IPv4 为准。地址变动时调整资源清单的 `littlestTokyoAsset.url` 并重建。
 
 ```powershell
 curl.exe --noproxy '*' --connect-timeout 5 -I 'http://192.168.1.46:8080/model.glb'
@@ -211,7 +213,7 @@ Get-Item '.\dist\game.bundle.js'
 
 ### T01 · 固定现有 3D 回归基线
 
-1. 保留 `e709c0f` 历史证据和当前工作区差异，保障 `src/main.ts`、`src/scenes/LittlestTokyo.ts`、现有解码器、材质、资源代码及依赖锁可恢复。
+1. 保留 `e709c0f` 历史证据和当前工作区差异，保障 `src/main.ts`、`src/game/scenes/littlest-tokyo/LittlestTokyo.ts`、现有解码器、材质、资源代码及依赖锁可恢复。
 2. 用 `npm.cmd run build:model` 重新核对 `game.js → dist/game.bundle.js`。按 §7.1 至 §7.3 复跑模拟器及可用的调试手机预览，记录构建体积、基础库和首个失败阶段。用新测试缓存版本和原版本分别检查冷下载与热缓存。
 
 **验收要求**为可复现当前构建，模拟器看到模型、贴图、Toon 和动画。场景日志预计为 71 个网格、193,125 个顶点、1 段动画。若当次设备或服务器不可用，记录已验证范围及缺失证据，从已确认的构建和离线解码基线继续做 T02。

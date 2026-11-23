@@ -6,8 +6,8 @@ const { buildSync } = require('esbuild');
 const { outputFiles: [bundle] } = buildSync({
   stdin: {
     contents: `
-      export { loadModelGLB } from './src/assets/loadModelGLB';
-      export { ModelLoadAttempt } from './src/assets/ModelLoadAttempt';
+      export { loadModelGLB } from './src/framework/assets/model/loadModelGLB';
+      export { ModelLoadAttempt } from './src/framework/assets/model/ModelLoadAttempt';
     `,
     resolveDir: process.cwd()
   },
@@ -100,7 +100,9 @@ function fixture({ cached, downloadBytes = valid, statusCode = 200, offline = fa
   const { loadModelGLB, ModelLoadAttempt } = entry.exports;
   return {
     newAttempt: () => new ModelLoadAttempt(),
-    load(attempt = new ModelLoadAttempt()) { return loadModelGLB('littlestTokyo', attempt, () => {}); },
+    load(attempt = new ModelLoadAttempt()) {
+      return loadModelGLB({ url: 'https://assets.invalid/model.glb', cacheKey: 'littlest-tokyo', version: 'network-test-v3' }, attempt, () => {});
+    },
     counters: () => ({ requests, aborts, removals, saves }),
     lateDownload() { download.success({ statusCode: 200, tempFilePath: '/tmp/model.glb' }); }
   };

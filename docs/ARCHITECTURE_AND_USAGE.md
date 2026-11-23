@@ -10,22 +10,22 @@
 | --- | --- | --- | --- |
 | 最小启动和平台排错 | `npm.cmd run build` | 程序化立方体和同一套 Pixi 面板 | 无模型下载、Draco 或项目外部贴图 |
 | 3D 与 UI 联调 | `npm.cmd run build:model` | Littlest Tokyo GLB、Toon 材质、动画和 Pixi 面板 | 局域网 HTTP 资源或已命中的版本缓存 |
-| 框架内部拆分 | `npm.cmd run build:app` | 首页、3D 配装台、Pixi 导航与场景往返 | 程序化几何。首次进入配装台读取包内 UI 图集，加载失败时保留矢量色块 |
-| 首页与真实模型 | `npm.cmd run build:app:model` | 首页、配装台、Littlest Tokyo、进度、返回与重试 | 进入模型场景时下载或读取缓存 |
+| 业务样例 | `npm.cmd run build:app` | 首页、3D 配装台、限时颜色匹配与场景往返 | 程序化几何。业务场景首次请求时读取包内 UI 图集 |
+| 首页与真实模型 | `npm.cmd run build:app:model` | 同一业务首页增加 Littlest Tokyo、进度、返回与重试 | 进入模型场景时下载或读取缓存 |
 | WebGL2 基础诊断 | `npm.cmd run build:webgl2` | 原生绘制探针、立方体和 Pixi HUD | 目标运行环境的 WebGL2 |
 | WebGL2 模型诊断 | `npm.cmd run build:webgl2:model` | 原生绘制探针、Littlest Tokyo、Draco、Toon、动画和 Pixi HUD | 目标运行环境的 WebGL2 及模型服务器或缓存 |
 | Pixi UI 诊断 | `npm.cmd run build:ui` | 立方体、包内 PNG Sprite、BitmapText 和触摸计数 | 项目根目录的 `media/pixi-ui-probe.png` |
 | 静态检查 | `npm.cmd run typecheck` | TypeScript 严格类型检查 | 覆盖 `src/**/*.ts` |
 | 自动回归 | `npm.cmd test` | 微信运行时全局兼容、真实 OrbitControls、触摸捕获、共享帧循环与前后台测试 | 本地 Node 与已安装依赖 |
 
-七个构建共用 `bundle` 脚本，写入同一个 `dist/game.bundle.js`。微信工具运行最后一次构建的模式。最小模式 1,046,207 字节，独立模型 1,756,918 字节，业务 1,102,440 字节，业务与模型联合 1,814,519 字节，WebGL2 基础诊断 1,049,085 字节，WebGL2 模型诊断 1,759,883 字节，Pixi UI 诊断 1,094,679 字节。均通过 ES2019 语法解析。原生绘制和 Pixi UI 探针只进入各自诊断，业务和 UI 诊断共享图集加载模块，带 `model` 的构建包含 GLB 加载和 Draco。实际预览包大小以微信开发者工具为准。
+七个构建共用 `bundle` 脚本。各命令向 esbuild 注入 `BUILD_PROFILE` 字符串，在编译时选择 `src/main.ts` 的启动分支，并写入同一个 `dist/game.bundle.js`。微信工具运行最后一次构建的模式。最小模式 1,046,434 字节，独立模型 1,757,202 字节，业务 1,106,023 字节，业务与模型联合 1,817,731 字节，WebGL2 基础诊断 1,049,319 字节，WebGL2 模型诊断 1,760,174 字节，Pixi UI 诊断 1,092,187 字节。均通过 ES2019 语法解析。轻量业务包排除 Draco 和诊断面板。实际预览包大小以微信开发者工具为准。
 
 ## 2. 运行架构
 
 ```text
 npm run build       → 立方体排错
 npm run build:model → 模型回归
-npm run build:app   → 首页及配装台
+npm run build:app   → 首页、配装台及颜色匹配
 npm run build:app:model → 首页、配装台及 Littlest Tokyo
                            ↓
               src/main.ts → esbuild → dist/game.bundle.js ← game.js
@@ -47,18 +47,20 @@ wx.downloadFile / 版本缓存 → ArrayBuffer → GLTFLoader.parse
 | --- | --- |
 | `game.js`、`game.json`、`project.config.json` | 微信入口、竖屏、小游戏项目和打包规则。保持 `es6: false`，由 esbuild 提供兼容语法。源码、测试、文档和归档的 `libs/` 由打包规则排除。 |
 | `src/main.ts` | 唯一 TypeScript 入口，按构建模式选择场景工厂，然后启动共享运行时。 |
-| `src/runtime/startGame.ts` | 持有 Canvas、平台、渲染器、HUD、RAF、尺寸与前后台处理。绘制顺序为 Three 后叠加 Pixi。 |
-| `src/diagnostics/webGL2.ts` | 在同一上屏 Canvas 请求 WebGL2，编译 GLSL ES 3.00 并绘制和读回像素。确认后给 Three 提供上下文，记录真实版本、模板缓冲及初始化结果。 |
-| `src/scenes/Cube.ts` | 构建程序化立方体，以及独立的相机、灯光和旋转更新。 |
-| `src/app/startApp.ts`、`AppHud.ts`、`Workbench.ts` | 应用导航、业务 UI 与 3D 配装逻辑。首页通过动态导入进入业务模块。返回时调用同一运行时的场景切换接口。 |
-| `src/scenes/LittlestTokyo.ts` | 持有模型相机、灯光、动画和当前加载尝试。对应用提供状态、重试与退出释放，通过 `update(delta)` 接入共享帧循环。 |
-| `src/platform/WechatPlatform.ts` | 继承已验证的 `WechatGamePlatform`。沿用其微信原生触摸订阅，仅在手势开始时询问 HUD 是否接管按钮、开关、滑块或拖动把手。起点在场景的手势走原 OrbitControls。 |
-| `src/ui/loadHud.ts` | 在延迟加载 Pixi 之前补齐缺失的 `navigator` 和 `performance.now()`。构建把 Pixi 的裸 `performance`、`Intl` 引用映射到对应的 `globalThis` 属性。 |
-| `src/ui/PixiHud.ts` | 配置微信 Canvas 适配，使用 Pixi 的静态代码兼容模块。通过 `beginGesture` 提供控件命中，返回 `move / release / cancel`。矩形、色条及数字由矢量 Graphics 生成，面板位置和缩放由 Container 管理。 |
-| `src/ui/packagedUIAtlas.ts`、`src/assets/loadPackagedImage.ts` | 以 `wx.createImage` 解码包内图集，提供共用纹理和位图数字。BitmapText 扩展在渲染器初始化前注册。配装台首入时请求图集，成功后在应用存活期间复用。 |
-| `src/assets/modelCatalog.ts`、`loadModelGLB.ts`、`WechatAssetLoader.js` | 按资源 ID 取 URL 和版本，调用 `wx.downloadFile` 及微信文件系统。加载器验证 GLB 头、长度和解析结果，验收后持久化。缓存按 `<cacheKey>-<version>.glb` 存储在 `wx.env.USER_DATA_PATH/three-model-cache`。解析失败的缓存尝试删除，下一次重试跳过该条缓存。 |
-| `src/draco/WechatDracoLoader.js`、`src/draco/draco_decoder.js` | 适配版 GLTFLoader 接口、纯 JS 解码、顶点属性和索引生成及临时对象释放。模型正常路径无需 Worker 或单独的 WASM 文件。 |
-| `src/rendering/AnimeToonMaterial.js` | 将适用的模型材质转换为 Toon，保留基础贴图，使用 WebGL1 兼容的 `LuminanceFormat` 渐变纹理。 |
+| `src/framework/runtime/startGame.ts` | 持有 Canvas、平台、渲染器、HUD、RAF、尺寸与前后台处理。绘制顺序为 Three 后叠加 Pixi。 |
+| `src/examples/webgl2/webGL2.ts` | 在同一上屏 Canvas 请求 WebGL2，编译 GLSL ES 3.00 并绘制和读回像素。确认后给 Three 提供上下文，记录真实版本、模板缓冲及初始化结果。 |
+| `src/game/scenes/home/Cube.ts` | 构建程序化立方体，以及独立的相机、灯光和旋转更新。 |
+| `src/game/startGameApp.ts`、`AppHud.ts` | 应用导航和 HUD 装配。按需载入场景和 UI，调用运行时 `switchScene` 进入和返回。 |
+| `src/game/scenes/workbench/`、`src/game/scenes/color-match/` | 各自持有 3D、UI 与业务数据。颜色匹配以纯逻辑模块 `round.ts` 管理计分和回合。 |
+| `src/game/scenes/littlest-tokyo/LittlestTokyo.ts` | 持有模型相机、灯光、动画和当前加载尝试。对应用提供状态、重试与退出释放，通过 `update(delta)` 接入共享帧循环。 |
+| `src/framework/platform/WechatPlatform.ts` | 继承已验证的 `WechatGamePlatform`。沿用其微信原生触摸订阅，仅在手势开始时询问 HUD 是否接管按钮、开关、滑块或拖动把手。起点在场景的手势走原 OrbitControls。 |
+| `src/framework/ui/loadHud.ts` | 在延迟加载 Pixi 之前补齐缺失的 `navigator` 和 `performance.now()`。构建把 Pixi 的裸 `performance`、`Intl` 引用映射到对应的 `globalThis` 属性。 |
+| `src/framework/ui/PixiHud.ts` | 配置微信 Canvas 适配，使用 Pixi 的静态代码兼容模块。由调用方提供 HUD 视图，经 `beginGesture` 返回 `move / release / cancel`。 |
+| `src/examples/` | 启动各专项案例。计数、开关、滑块、遮罩和整板拖动位于 `basic/controlsHud.ts`，可供模型与 WebGL2 案例显式复用。 |
+| `src/game/ui/packagedUIAtlas.ts`、`src/framework/assets/loadPackagedImage.ts` | 以 `wx.createImage` 解码包内图集，提供共用纹理和位图数字。BitmapText 扩展在渲染器初始化前注册。配装台首入时请求图集，成功后在应用存活期间复用。 |
+| `src/framework/assets/model/`、`src/game/scenes/littlest-tokyo/modelAsset.ts` | 场景提供 URL、缓存键和版本。通用加载器通过 `wx.downloadFile` 及微信文件系统验证 GLB 头、长度和解析结果。缓存按 `<cacheKey>-<version>.glb` 存储在 `wx.env.USER_DATA_PATH/three-model-cache`。解析失败的缓存尝试删除，下一次重试跳过该条缓存。 |
+| `src/framework/assets/model/draco/WechatDracoLoader.js`、`src/framework/assets/model/draco/draco_decoder.js` | 适配版 GLTFLoader 接口、纯 JS 解码、顶点属性和索引生成及临时对象释放。模型正常路径无需 Worker 或单独的 WASM 文件。 |
+| `src/game/scenes/littlest-tokyo/AnimeToonMaterial.js` | 将适用的模型材质转换为 Toon，保留基础贴图，使用 WebGL1 兼容的 `LuminanceFormat` 渐变纹理。 |
 
 **渲染边界。** 入口创建上屏 Canvas，先绘制 Three，再重置状态并叠加 Pixi。Pixi 绘制时关闭清屏。业务首屏导航由 Graphics 绘制，BitmapText 扩展随业务 HUD 注册，图片留到配装台首入时解码。输入由微信触摸桥处理。新增 UI 扩展时先验证相关平台能力，尤其是 Text 的 Canvas 纹理、图片解码和联调包大小。
 
@@ -89,7 +91,7 @@ Set-Location 'D:\Project\Web\ThreeJsTest'
 python -m http.server 8080 --bind 0.0.0.0 --directory '.\WechatAssetServer'
 ```
 
-确认该目录下有 `model.glb`。现有资源与网页原型的 `littlest-tokyo-vite/public/models/LittlestTokyo.glb` 字节相同。用 `ipconfig` 核对手机可达的网卡 IP，必要时更新 `src/assets/modelCatalog.ts` 中 `littlestTokyo.url`。当前配置为 `http://192.168.1.46:8080/model.glb`。换模型或换资源来源时一起更新 `version`，以便重新下载。
+确认该目录下有 `model.glb`。现有资源与网页原型的 `littlest-tokyo-vite/public/models/LittlestTokyo.glb` 字节相同。用 `ipconfig` 核对手机可达的网卡 IP，必要时更新 `src/game/scenes/littlest-tokyo/modelAsset.ts` 中 `littlestTokyoAsset.url`。当前配置为 `http://192.168.1.46:8080/model.glb`。换模型或换资源来源时一起更新 `version`，以便重新下载。
 
 ```powershell
 Set-Location 'D:\Project\Web\ThreeJsTest\PixiWechatTest'
@@ -110,7 +112,7 @@ npm.cmd run build:model
 
 执行 `npm.cmd run build:app` 后在开发者工具点击「编译」。本模式无需模型服务器。
 
-1. 首页应显示旋转立方体，底部只有蓝色右箭头。点箭头进入配装台。
+1. 首页应显示旋转立方体，底部有紫色三色按钮和蓝色右箭头。点蓝色箭头进入配装台。
 2. 首次进入后，三个色块应显示位图编号 `01`、`02`、`03`，日志应出现一次 `[App] Workbench palette ready`。点色块，几何模型应立即换色，当前色块有白边。点右侧对勾，模型开始旋转，按钮显示确认状态。面板外拖动可转视角。
 3. 点左箭头返回，再进入。首页隐藏配色选项，重进恢复初始颜色和未确认状态，并复用已解码的同一张图集。快速重复点入口只进入一次。切后台再返回，检查视角、帧循环与触摸。
 4. 若图片仍在加载或加载失败，原有矢量色块仍可选色和确认。失败时查找 `[App] Workbench uses Graphics swatches`，核对 `media/pixi-ui-probe.png` 是否进入项目包。
@@ -150,6 +152,15 @@ npm.cmd run build:model
 
 诊断用 `wx.createImage` 加载本地图片，交给显式的 Pixi `ImageSource`。在创建 Pixi 渲染器前注册 BitmapText 扩展，数字共用图集。此样例覆盖预渲染的十个阿拉伯数字。Canvas 动态文字、中文字体、长列表按业务需要分别验收。[Pixi BitmapText 指南](https://pixijs.com/8.x/guides/components/scene-objects/text/bitmap) · [Pixi 纹理指南](https://pixijs.com/8.x/guides/components/textures)
 
+### 3.8 颜色匹配场景验收
+
+执行 `npm.cmd run build:app`，重新编译。无需模型服务器。
+
+1. 点首页底部紫色三色按钮。确认 Three 几何体、上方时钟和星标、底部播放按钮可见。点播放，出现三个颜色选项。
+2. 点与 3D 物体同色的按钮，分数加一，物体换色。点错色、按住拖出后释放、从 3D 区域拖动视角均不加分。
+3. 切后台数秒再回前台，倒计时延续切出时的进度。计时使用运行时提供的前台帧步长。到零后可点蓝色重开按钮，分数归零、时间回到 `20`。
+4. 点左箭头回首页，再次进入应停在待开始状态。再打开配装台，确认同一图集的数字色块仍正常。记录微信开发者工具、手机与基础库，遇到失败保留首条日志。
+
 ## 4. UI 验收和扩展
 
 开发者负责微信开发者工具及手机上的交互验收，Agent 负责实现、类型检查、自动测试和构建。失败时保留设备、微信和基础库版本，连同操作、期望、实际表现及首条相关日志回传。
@@ -163,10 +174,16 @@ npm.cmd run build:model
 | 拖动与命中 | 拖动顶部双线把手，面板与所有子控件一起移动。放下后在新位置点击 `+`，计数继续增加。 |
 | 3D 输入隔离 | 在面板外开始拖动，模型视角旋转，面板位置与计数保持原样。 |
 
-开发者已确认首页与模型联合构建、WebGL2 专项和 Pixi UI 的 `Intl` 修复通过验收，记录未附完整设备信息。本轮 17 项自动回归、类型检查和七种模式的构建与 ES2019 语法检查通过。新增配装台色块和位图编号已在桌面软件 WebGL 中验证，微信工具和手机待按 §3.4 验收。
+开发者已确认重构前的首页与模型联合构建、WebGL2 专项、Pixi UI 的 `Intl` 修复及配装台 UI，记录未附完整设备信息。重构后的本地基线包含 19 项自动回归、类型检查和七种模式的构建与 ES2019 语法检查。
 
-新增控件时在 HUD 内定义视觉、命中区域和状态更新，单击动作在 `release` 内提交，拖动控件在 `move` 内更新，取消时恢复临时交互状态。新增业务场景可参照 `src/app/Workbench.ts` 提供相机、控制器、更新和释放，在 `src/app/startApp.ts` 接入导航，复用平台、RAF 和 HUD。
+新增控件时在 HUD 内定义视觉、命中区域和状态更新，单击动作在 `release` 内提交，拖动控件在 `move` 内更新，取消时恢复临时交互状态。
+
+1. 在 `src/game/scenes/<场景名>/` 编写场景工厂和 HUD。参考 `color-match/ColorMatch.ts` 返回相机、OrbitControls、`update(delta)` 与 `dispose()`，把回合或业务状态放在同目录。
+2. 在 `src/game/startGameApp.ts` 延迟加载场景及 HUD，使用 `switchScene` 切换 3D，使用 `AppHud.mountActivity` 挂载该场景的 HUD。为 `HomeHud.ts` 增加入口图形，并在 `AppHud.ts` 连接该按钮的点击动作。
+3. 用 `npm.cmd run build:app` 验收入口、前后台、返回和重进。新业务只需改 `game` 文件。专项案例按需在 `examples/` 独立增加启动模块和构建目标。
 
 ## 5. 审查结论与下一阶段
 
-现有磁盘产物对应 `build:app`。先按 §3.4 验证配装台的 Sprite、BitmapText 与已有选色流程，再按 §3.5 验证带模型入口的应用。业务 UI、物理 JS 拆分和微信分包的实施口径见[目标架构的分阶段验收](FRAMEWORK_ARCHITECTURE.md#5-分阶段实施与验收)。
+现有磁盘产物是重构后包含颜色匹配场景的 `build:app`。先按 §3.4 和 §3.8 做微信端业务验收，再按 §3.5 用联合模型构建验收 Draco、缓存与返回。发布验收需要可用且已登记的 HTTPS 下载域名。[源码目录](FRAMEWORK_ARCHITECTURE.md#22-推荐目录) · [实施顺序和验收](FRAMEWORK_ARCHITECTURE.md#5-分阶段实施与验收)
+
+本地按 `project.config.json` 核对了导入目录的运行文件，包含 `game.js`、`game.json`、`dist/game.bundle.js` 与 `media/pixi-ui-probe.png`。模型 GLB 在同级资源服务器目录。微信工具生成预览前，记录当前构建命令、主包实际字节数和最大文件。手机端记录系统、微信与基础库版本，分别测到首页可操作和首次进入模型就绪的耗时，并保存冷下载和热缓存日志。[普通预览验收流程](PROJECT_STATUS_AND_AGENT_HANDOFF.md#74-关闭调试的普通扫码验收)

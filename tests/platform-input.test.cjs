@@ -6,7 +6,7 @@ const { buildSync } = require('esbuild');
 const { outputFiles: [bundle] } = buildSync({
   stdin: {
     contents: `
-      export { WechatPlatform } from './src/platform/WechatPlatform';
+      export { WechatPlatform } from './src/framework/platform/WechatPlatform';
       export { PerspectiveCamera } from 'three-platformize';
       export { OrbitControls } from 'three-platformize/examples/jsm/controls/OrbitControls';
     `,

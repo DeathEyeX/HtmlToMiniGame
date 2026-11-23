@@ -9,6 +9,7 @@
 | 启动、画布、共享 WebGL 及基础 HUD 隔离排错 | `npm.cmd run build` | 停止资源服务器后仍能启动，看到旋转立方体和 HUD。 |
 | 3D 模型与 UI 联合验收 | `npm.cmd run build:model` | Littlest Tokyo、Toon 材质和动画可见，Pixi 面板可点按、释放、调整和拖动，模型视角仍可操作。 |
 | 配装台图集与交互 | `npm.cmd run build:app` | 首入显示 `01`–`03` 三块配色，选色和确认正常，返回重进复用图集。图集出错时矢量色块仍可用。 |
+| 颜色匹配业务场景 | `npm.cmd run build:app` | 紫色入口可进入。播放后选对加分并换色，拖出取消。切后台暂停，计时归零可重开。 |
 | 业务首页与模型往返 | `npm.cmd run build:app:model` | 首页可进配装台或模型，加载中可返回，失败可重试，回首页后色调和交互正确。 |
 | WebGL2 专项 | `npm.cmd run build:webgl2`，随后 `npm.cmd run build:webgl2:model` | 原生绘制、Three、Pixi 各阶段通过，再验证模型、贴图、Toon、遮罩及生命周期。 |
 | Pixi UI 专项 | `npm.cmd run build:ui` | 四色 Sprite、六位 BitmapText 和立方体同屏。释放加号更新计数，拖出后释放保持原值。 |
@@ -41,7 +42,7 @@
 | QA-12 | 真机模型可见、蓝色 UI 按钮缺失，首条为 `[ThreeDraco] HUD initialization failed`，堆栈指向 Pixi 调度器的 `performance is not defined`。 | 在导入前保留可用计时器或补 `globalThis.performance.now()`，微信性能时钟微秒转换为毫秒，缺失时使用单调的本地时间差。仅增加全局 shim 后曾仍出错，构建随后将 Pixi 的裸引用映射到 `globalThis.performance`。开发者后续确认真机可点击，本地测试验证缺少自由变量绑定的运行环境。 |
 | QA-13 | 小游戏平台限制动态代码生成。Pixi 尝试运行浏览器侧动态生成的代码会阻断 HUD 初始化。 | 使用 Pixi 的 `pixi.js/unsafe-eval` 静态兼容模块，提供预定义函数。保留延迟加载和渲染状态切换，初始化或逐帧绘制失败时模型模式记录 HUD 错误并继续 3D。 |
 | QA-14 | 模拟器的 Graphics 正常，Pixi `Text` 字形纹理曾为空白。 | 计数和滑块数字用矢量 Graphics。原生 Text、BitmapText、字体与 Sprite 纹理分别作为待验能力，先做独立最小样本。 |
-| QA-15 | 模型与立方体以前各有启动入口，模型为 JS，尺寸和前后台处理易出现差异。历史锁文件还有旧试验的 Git+SSH 依赖。 | `src/main.ts` 统一渲染、输入安装、尺寸和 RAF，构建期 `MODEL_DEMO` 选择场景。依赖图确认独立实验未引用后移除旧脚本、对应构建产物和无用依赖。正常 JS Draco 工厂仍在模型包内。最新前后台行为待开发者复测。 |
+| QA-15 | 模型与立方体以前各有启动入口，模型为 JS，尺寸和前后台处理易出现差异。历史锁文件还有旧试验的 Git+SSH 依赖。 | `src/main.ts` 统一启动入口。初期用 `MODEL_DEMO` 选场景，当前使用编译期 `BUILD_PROFILE`。依赖图确认旧实验未引用后已移除对应脚本和依赖，正常 JS Draco 工厂仍在模型包内。 |
 
 ## 4. 点击、释放、拖动和模拟器异常
 
@@ -55,7 +56,7 @@
 
 ## 5. 验证分工与最短复测
 
-目标架构阶段 A 将共享启动移入 `src/runtime/startGame.ts`。新增回归验证 HUD 异步加载期间 3D 仍绘制，HUD 启用后按 Three、Pixi 顺序输出，切后台后停止帧循环，返回只恢复一个 RAF 且不累计后台时间。该测试使用模拟微信和渲染接口，真机生命周期仍由开发者执行。[框架目标架构与阶段验收](FRAMEWORK_ARCHITECTURE.md)
+目标架构阶段 A 将共享启动移入 `src/framework/runtime/startGame.ts`。新增回归验证 HUD 异步加载期间 3D 仍绘制，HUD 启用后按 Three、Pixi 顺序输出，切后台后停止帧循环，返回只恢复一个 RAF 且不累计后台时间。该测试使用模拟微信和渲染接口，真机生命周期仍由开发者执行。[框架目标架构与阶段验收](FRAMEWORK_ARCHITECTURE.md)
 
 开发者确认上一阶段验收通过，未提供设备、包分析和耗时细项。框架内部拆分的 `build:app` 已在本地验证首页和配装台往返、选色确认、资源释放以及共用 Canvas 和输入订阅。自动回归覆盖场景初始化异常时保留旧场景，以及复用 RAF。
 
@@ -65,7 +66,9 @@ WebGL2 探针分别记录原生绘制、Three 和 Pixi 三个阶段。自动测�
 
 Pixi UI 诊断验证 `wx.createImage` 包内路径、成功／失败／超时、Pixi 扩展注册顺序及位图数字。桌面 Edge 软件 WebGL 使用真实 PNG 和模拟微信接口，读回了四色 Sprite 像素、六位数字字形和点击后变化的字形。开发者已确认 `Intl` 修复后的诊断包通过真机复测。[Pixi UI 专项](ARCHITECTURE_AND_USAGE.md#37-pixi-ui-专项诊断)
 
-配装台使用同一张包内 PNG，在桌面软件 WebGL 中验证了首页无图片读取、首入只读一次、编号色块显示、选择白边、确认、返回重进和图片失败回退。待使用业务包在微信工具和手机复测，并记录实际包大小。[配装台验收](ARCHITECTURE_AND_USAGE.md#34-框架内部拆分验收)
+开发者于 2026-11-23 确认 `build:app` 的配装台新增 UI 验收通过，未附设备、基础库和实测包大小。首页无图片读取、首入只读一次、重进复用及图片失败回退由桌面软件 WebGL 单独验证。[配装台验收](ARCHITECTURE_AND_USAGE.md#34-框架内部拆分验收)
+
+目录和构建目标整理后，19 项自动回归与七种构建通过。桌面软件 WebGL 以模拟微信输入读取实际 GPU 像素，验证配装台色块、颜色匹配计分、拖出取消、后台暂停、到时重开和重进。真实 GLB 在模拟微信文件、图片和下载接口中验证取消、503 重试、热缓存退出和场景释放。当前产物待开发者按业务和联合模型步骤在微信端复测。[颜色匹配验收](ARCHITECTURE_AND_USAGE.md#38-颜色匹配场景验收)
 
 1. Agent 负责 `npm.cmd test`、构建、产物语法及依赖图检查，报告本轮实际验证范围。开发者负责微信工具的编译及操作、扫码和手机日志。
 2. 优先用模型包确认模型及动画同时可见。一次跑完蓝色按钮有效释放及拖出取消、开关、滑块、随面板移动的遮罩、拖动把手、面板外旋转模型。对照[完整 UI 验收表](ARCHITECTURE_AND_USAGE.md#4-ui-验收和扩展)。

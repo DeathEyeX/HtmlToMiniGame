@@ -1,9 +1,14 @@
 import { BufferGeometry, Material, Mesh, Texture } from 'three-platformize';
 import { GLTFLoader, type GLTF } from 'three-platformize/examples/jsm/loaders/GLTFLoader';
-import { WechatDracoLoader } from '../draco/WechatDracoLoader.js';
+import { WechatDracoLoader } from './draco/WechatDracoLoader.js';
 import type { ModelLoadAttempt } from './ModelLoadAttempt';
-import { modelAsset } from './modelCatalog';
 import { loadRemoteGLB } from './WechatAssetLoader.js';
+
+export interface ModelAsset {
+  url: string;
+  cacheKey: string;
+  version: string;
+}
 
 export function collectModelAssets(gltf: GLTF) {
   const geometries = new Set<BufferGeometry>();
@@ -67,8 +72,7 @@ export function parseModelGLB(buffer: ArrayBuffer, attempt: ModelLoadAttempt) {
   });
 }
 
-export async function loadModelGLB(id: Parameters<typeof modelAsset>[0], attempt: ModelLoadAttempt, onProgress: (percent: number) => void) {
-  const asset = modelAsset(id);
+export async function loadModelGLB(asset: ModelAsset, attempt: ModelLoadAttempt, onProgress: (percent: number) => void) {
   console.log('[ThreeDraco] Loading remote model', asset.url);
   const downloadStart = Date.now();
   let lastProgress = -1;
