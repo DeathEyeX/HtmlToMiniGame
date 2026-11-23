@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const { buildSync } = require('esbuild');
 
 const { outputFiles: [bundle] } = buildSync({
-  entryPoints: ['src/game/apps/webgl2/webGL2.ts'],
+  entryPoints: ['src/framework/rendering/createWebGL2Renderer.ts'],
   bundle: true,
   format: 'cjs',
   external: ['three-platformize'],

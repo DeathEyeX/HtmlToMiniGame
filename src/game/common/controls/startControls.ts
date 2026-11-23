@@ -1,11 +1,10 @@
-import { startGame, type RendererFactory } from '../../../framework/runtime/startGame';
+import { startGame } from '../../../framework/runtime/startGame';
 import { createCubeScene } from '../three/Cube';
 
-export function startControls(createRenderer?: RendererFactory) {
+export function startControls() {
   return startGame((scene, _renderer, canvas) => createCubeScene(scene, canvas), {
     tag: '[Framework]',
     hudReadyMessage: 'Three and Pixi initialized',
-    showHudErrorModal: true,
-    createWebGL2Renderer: createRenderer
+    showHudErrorModal: true
   }, async () => (await import('../ui/controlsHud')).createControlsHud);
 }

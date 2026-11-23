@@ -8,20 +8,20 @@
 
 ```powershell
 npm.cmd ci
-npm.cmd run build:app
+npm.cmd run build:target -- showcase
 ```
 
 在微信开发者工具中以小游戏模式导入当前目录并点击「编译」。首页的蓝色箭头进入配装台，紫色三色按钮进入 20 秒颜色匹配。两个玩法均可离线启动。
 
 | 想运行的内容 | 命令 |
 | --- | --- |
-| 基础立方体与操作面板 | `npm.cmd run build` |
-| 直接进入配装台 | `npm.cmd run build:workbench` |
-| 直接进入颜色匹配 | `npm.cmd run build:color-match` |
-| Pixi 图集、位图数字及点按 | `npm.cmd run build:ui` |
-| 首页与两个玩法 | `npm.cmd run build:app` |
-| 独立模型或首页加模型 | `npm.cmd run build:model`、`npm.cmd run build:app:model` |
-| WebGL2 基础、模型 | `npm.cmd run build:webgl2`、`npm.cmd run build:webgl2:model` |
+| 基础立方体与操作面板 | `npm.cmd run build:target -- controls` |
+| 直接进入配装台 | `npm.cmd run build:target -- workbench` |
+| 直接进入颜色匹配 | `npm.cmd run build:target -- color-match` |
+| Pixi 图集、位图数字及点按 | `npm.cmd run build:target -- pixi-ui` |
+| 首页与两个玩法 | `npm.cmd run build:target -- showcase` |
+| 独立模型或首页加模型 | `npm.cmd run build:target -- model-viewer`、`npm.cmd run build:target -- showcase-model` |
+| WebGL2 基础、模型 | `npm.cmd run build:target -- webgl2`、`npm.cmd run build:target -- webgl2-model` |
 | 查看或指定目标 | `npm.cmd run build:list`、`npm.cmd run build:target -- <目标名>` |
 
 模型目标需要启动同级 `WechatAssetServer` 并核对 `src/game/common/model-viewer/modelAsset.ts` 的 URL。[模型运行步骤](docs/ARCHITECTURE_AND_USAGE.md#32-启动模型联调)
@@ -32,6 +32,7 @@ npm.cmd run build:app
 - `src/game/apps/` 为每个独立应用提供入口，集成首页位于 `showcase/`。
 - `src/game/common/` 按功能保存实际共用的场景、玩法和 UI。
 - `scripts/targets.json` 指定各目标的入口和包内素材。`dist/` 由构建生成，微信固定通过 `game.js` 加载当前产物。
+- 在目标条目设置 `renderer` 可选 WebGL1 或 WebGL2，省略时使用 WebGL1。[渲染配置](docs/ARCHITECTURE_AND_USAGE.md#11-入口与渲染配置)
 
 新增应用时，建一个应用目录并在 `scripts/targets.json` 登记入口，再执行 `npm.cmd run build:target -- <目标名>`。[新增应用与资源指南](docs/ARCHITECTURE_AND_USAGE.md#5-新增应用和素材)
 

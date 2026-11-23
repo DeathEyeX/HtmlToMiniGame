@@ -6,6 +6,8 @@ import { WechatPlatform } from '../platform/WechatPlatform';
 import { loadHud } from '../ui/loadHud';
 import type { CreateHudView } from '../ui/PixiHud';
 
+declare const GAME_RENDERER: 'webgl1' | 'webgl2';
+
 interface SceneSetup {
   camera: PerspectiveCamera;
   controls: OrbitControls;
@@ -21,13 +23,11 @@ export type CreateLocalScene = (
 ) => SceneSetup;
 
 type CreateScene = (...args: Parameters<CreateLocalScene>) => SceneSetup | Promise<SceneSetup>;
-export type RendererFactory = (canvas: HTMLCanvasElement) => WebGLRenderer;
 
 interface StartupDiagnostics {
   tag: string;
   hudReadyMessage: string;
   showHudErrorModal: boolean;
-  createWebGL2Renderer?: RendererFactory;
 }
 
 function screenSize() {
@@ -38,15 +38,16 @@ function screenSize() {
 export async function startGame(
   createScene: CreateScene, diagnostics: StartupDiagnostics, loadHudView?: () => Promise<CreateHudView>
 ) {
-  const { tag, hudReadyMessage, showHudErrorModal, createWebGL2Renderer } = diagnostics;
+  const { tag, hudReadyMessage, showHudErrorModal } = diagnostics;
   const canvas = wx.createCanvas();
   const platform = new WechatPlatform(canvas);
   PLATFORM.set(platform);
   const element = canvas as unknown as HTMLCanvasElement;
-  const renderer = createWebGL2Renderer
-    ? createWebGL2Renderer(element)
+  const renderer = typeof GAME_RENDERER !== 'undefined' && GAME_RENDERER === 'webgl2'
+    ? (await import('../rendering/createWebGL2Renderer')).createWebGL2Renderer(element)
     : new WebGL1Renderer({ canvas: element, antialias: true, alpha: false });
   const gl = renderer.getContext();
+  const webGLVersion = renderer.capabilities.isWebGL2 ? 2 : 1;
   const defaultRenderSettings = {
     outputEncoding: renderer.outputEncoding,
     toneMapping: renderer.toneMapping,
@@ -78,7 +79,7 @@ export async function startGame(
 
   function reportHudError(title: string, error: unknown) {
     console.error(`${tag} ${title}`, error);
-    if (showHudErrorModal) {
+    if (showHudErrorModal || webGLVersion === 2) {
       wx.showModal({ title, content: String(error), showCancel: false });
     }
   }
@@ -97,8 +98,8 @@ export async function startGame(
 
   let frame: number | undefined;
   let previousTime: number | undefined;
-  let reportFirstThreeFrame = Boolean(createWebGL2Renderer);
-  let reportFirstPixiFrame = Boolean(createWebGL2Renderer);
+  let reportFirstThreeFrame = webGLVersion === 2;
+  let reportFirstPixiFrame = webGLVersion === 2;
   function reportFrame(engine: string) {
     const error = gl.getError();
     if (error !== gl.NO_ERROR) console.error(`[WebGL2] ${engine} first frame GL error`, error);
@@ -143,7 +144,7 @@ export async function startGame(
 
   const { width, height, resolution } = viewport;
   try {
-    const overlay = await loadHud(canvas, gl, width, height, resolution, loadHudView, createWebGL2Renderer ? 2 : 1);
+    const overlay = await loadHud(canvas, gl, width, height, resolution, loadHudView, webGLVersion);
     overlay.resize(viewport.width, viewport.height, viewport.resolution);
     hud = overlay;
     platform.hud = overlay;

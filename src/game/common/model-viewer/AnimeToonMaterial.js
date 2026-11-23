@@ -26,7 +26,7 @@ const webGL1Gradient = createGradient(LuminanceFormat);
 let webGL2Gradient;
 
 export function applyAnimeToon(model, usesWebGL2 = false) {
-  // Three's WebGL2 upload uses immutable storage, which requires a sized format (R8).
+  // Three maps the byte RED texture to R8 in WebGL2.
   const gradient = usesWebGL2 ? (webGL2Gradient ??= createGradient(RedFormat)) : webGL1Gradient;
   let converted = 0;
 

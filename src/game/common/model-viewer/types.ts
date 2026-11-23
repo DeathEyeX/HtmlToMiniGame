@@ -11,7 +11,5 @@ export type ModelScene = ReturnType<CreateLocalScene> & {
 };
 
 export type ModelSceneFactory = (
-  scene: Parameters<CreateLocalScene>[0],
-  canvas: HTMLCanvasElement,
-  onStatus?: (status: ModelStatus) => void
+  ...args: [...Parameters<CreateLocalScene>, onStatus?: (status: ModelStatus) => void]
 ) => ModelScene;

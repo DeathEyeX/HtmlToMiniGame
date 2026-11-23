@@ -1,6 +1,6 @@
 import {
   ACESFilmicToneMapping, AnimationMixer, DirectionalLight, HemisphereLight, Mesh,
-  PerspectiveCamera, sRGBEncoding, type Object3D, type Scene
+  PerspectiveCamera, sRGBEncoding, type Object3D, type Scene, type WebGLRenderer
 } from 'three-platformize';
 import { OrbitControls } from 'three-platformize/examples/jsm/controls/OrbitControls';
 import { loadModelGLB, collectModelAssets } from '../../../framework/assets/model/loadModelGLB';
@@ -13,7 +13,7 @@ const LOAD_TIMEOUT = 45_000;
 const TAG = '[ThreeDraco]';
 
 export function createLittlestTokyoScene(
-  scene: Scene, canvas: HTMLCanvasElement, onStatus?: (status: ModelStatus) => void, usesWebGL2 = false
+  scene: Scene, renderer: WebGLRenderer, canvas: HTMLCanvasElement, onStatus?: (status: ModelStatus) => void
 ): ModelScene {
   const camera = new PerspectiveCamera(40, 1, 1, 100);
   camera.position.set(5, 2, 8);
@@ -72,7 +72,7 @@ export function createLittlestTokyoScene(
       try {
         root.position.set(1, 1, 0);
         root.scale.setScalar(0.01);
-        applyAnimeToon(root, usesWebGL2);
+        applyAnimeToon(root, renderer.capabilities.isWebGL2);
         loaded.collectConvertedMaterials();
         const clip = gltf.animations[0];
         if (clip) {

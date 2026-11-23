@@ -16,7 +16,7 @@ export async function startGameApp(modelOptions?: ModelOptions) {
 
   const openModel = modelOptions ? () => open('模型场景', async () => {
     const createScene = await modelOptions.loadScene();
-    model = game.switchScene((scene, _renderer, canvas) => createScene(scene, canvas, onModelStatus));
+    model = game.switchScene((scene, renderer, canvas) => createScene(scene, renderer, canvas, onModelStatus));
   }) : undefined;
 
   const game = await startGame(home, {

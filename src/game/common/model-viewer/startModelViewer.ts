@@ -1,14 +1,13 @@
-import { startGame, type RendererFactory } from '../../../framework/runtime/startGame';
+import { startGame } from '../../../framework/runtime/startGame';
 
-export function startModelViewer(createRenderer?: RendererFactory) {
+export function startModelViewer() {
   console.log('[ThreeDraco] Starting');
-  return startGame(async (scene, _renderer, canvas) => {
+  return startGame(async (scene, renderer, canvas) => {
     const { createLittlestTokyoScene } = await import('./LittlestTokyo');
-    return createLittlestTokyoScene(scene, canvas, undefined, Boolean(createRenderer));
+    return createLittlestTokyoScene(scene, renderer, canvas);
   }, {
     tag: '[ThreeDraco]',
     hudReadyMessage: 'Pixi HUD initialized',
-    showHudErrorModal: Boolean(createRenderer),
-    createWebGL2Renderer: createRenderer
+    showHudErrorModal: false
   }, async () => (await import('../ui/controlsHud')).createControlsHud);
 }

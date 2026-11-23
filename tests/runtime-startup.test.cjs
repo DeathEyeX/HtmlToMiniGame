@@ -24,6 +24,7 @@ test('the shared runtime resumes and switches scenes within a single frame loop'
   const canvas = {};
   const gl = { getParameter: () => 'WebGL 1.0' };
   const renderer = {
+    capabilities: { isWebGL2: false },
     outputEncoding: 1,
     toneMapping: 0,
     toneMappingExposure: 1,
@@ -50,7 +51,14 @@ test('the shared runtime resumes and switches scenes within a single frame loop'
       WebGL1Renderer: class { constructor(options) { assert.equal(options.canvas, canvas); return renderer; } }
     },
     '../platform/WechatPlatform': { WechatPlatform: class {} },
-    '../ui/loadHud': { loadHud: () => hudStarted }
+    '../ui/loadHud': {
+      loadHud(actualCanvas, context, _width, _height, _resolution, _view, version) {
+        assert.equal(actualCanvas, canvas);
+        assert.equal(context, gl);
+        assert.equal(version, 1);
+        return hudStarted;
+      }
+    }
   };
   const output = { exports: {} };
   let nextFrame = 0;
