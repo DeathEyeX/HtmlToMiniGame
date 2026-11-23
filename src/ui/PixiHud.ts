@@ -8,6 +8,13 @@ import type { HudGesture } from '../platform/WechatPlatform';
 
 type Point = Parameters<HudGesture['move']>[0];
 type Rect = Point & { width: number; height: number };
+
+interface HudView {
+  beginGesture(point: Point): HudGesture | undefined;
+  resize(width: number, height: number): void;
+}
+
+export type CreateHudView = (stage: Container, width: number, height: number) => HudView | Promise<HudView>;
 const panelSize = { width: 218, height: 174 };
 const handle = { x: 0, y: 0, width: 218, height: 31 };
 const button = { x: 12, y: 35, width: 105, height: 42 };
@@ -39,10 +46,12 @@ function drawDigits(graphic: Graphics, value: string, left: number, top: number)
 
 export async function createHud(
   canvas: ReturnType<typeof wx.createCanvas>,
-  context: WebGLRenderingContext,
+  context: WebGLRenderingContext | WebGL2RenderingContext,
   width: number,
   height: number,
-  resolution: number
+  resolution: number,
+  createView: CreateHudView = createDiagnosticsView,
+  webGLVersion: 1 | 2 = 1
 ) {
   DOMAdapter.set({
     ...DOMAdapter.get(),
@@ -58,7 +67,7 @@ export async function createHud(
     getFontFaceSet: () => null,
     getWebGLRenderingContext: () => ({
       // The native context may not expose a browser WebGL constructor.
-      [Symbol.hasInstance]: (value: unknown) => value === context
+      [Symbol.hasInstance]: (value: unknown) => webGLVersion === 1 && value === context
     }) as unknown as typeof WebGLRenderingContext
   });
 
@@ -73,8 +82,29 @@ export async function createHud(
     // Load only the graphics extension, with input owned by wx.
     skipExtensionImports: true
   });
+  if (webGLVersion === 2) {
+    if (renderer.context.webGLVersion !== 2 || renderer.gl !== context) {
+      throw new Error('Pixi did not adopt the shared WebGL2 context');
+    }
+    console.log('[WebGL2] Pixi WebGL version', renderer.context.webGLVersion);
+  }
 
   const stage = new Container();
+  const view = await createView(stage, width, height);
+  return {
+    beginGesture: view.beginGesture,
+    resize(width: number, height: number, resolution: number) {
+      renderer.resize(width, height, resolution);
+      view.resize(width, height);
+    },
+    render() {
+      renderer.resetState();
+      renderer.render({ container: stage, clear: false });
+    }
+  };
+}
+
+function createDiagnosticsView(stage: Container, width: number, height: number): HudView {
   const panel = new Container();
   const surface = new Graphics()
     .roundRect(0, 0, panelSize.width, panelSize.height, 12).fill({ color: 0x102746, alpha: 0.96 })
@@ -188,15 +218,10 @@ export async function createHud(
 
   return {
     beginGesture,
-    resize(width: number, height: number, resolution: number) {
+    resize(width: number, height: number) {
       screenWidth = width;
       screenHeight = height;
-      renderer.resize(width, height, resolution);
       place(panel.x, panel.y);
-    },
-    render() {
-      renderer.resetState();
-      renderer.render({ container: stage, clear: false });
     }
   };
 }

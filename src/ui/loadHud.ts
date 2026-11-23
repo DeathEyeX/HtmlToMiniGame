@@ -1,4 +1,11 @@
-export async function loadHud(...args: Parameters<typeof import('./PixiHud').createHud>) {
+import type { CreateHudView } from './PixiHud';
+
+export async function loadHud(
+  canvas: ReturnType<typeof wx.createCanvas>,
+  context: WebGLRenderingContext | WebGL2RenderingContext,
+  width: number, height: number, resolution: number,
+  loadView?: () => Promise<CreateHudView>, webGLVersion: 1 | 2 = 1
+) {
   // Pixi inspects the browser adapter during module evaluation, before it
   // is possible to install our DOMAdapter override.
   if (typeof globalThis.navigator === 'undefined') {
@@ -26,6 +33,8 @@ export async function loadHud(...args: Parameters<typeof import('./PixiHud').cre
   }
 
   console.log('[PixiHUD] clock-bridge-v2', typeof globalThis.performance.now);
+  // Optional renderer extensions must register before createHud initializes Pixi.
+  const createView = await loadView?.();
   const { createHud } = await import('./PixiHud');
-  return createHud(...args);
+  return createHud(canvas, context, width, height, resolution, createView, webGLVersion);
 }

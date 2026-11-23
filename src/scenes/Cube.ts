@@ -21,6 +21,10 @@ export function createCubeScene(scene: Scene, canvas: HTMLCanvasElement) {
   return {
     camera,
     controls,
-    update(delta: number) { cube.rotation.y += delta * 0.6; }
+    update(delta: number) { cube.rotation.y += delta * 0.6; },
+    dispose() {
+      cube.geometry.dispose();
+      cube.material.dispose();
+    }
   };
 }

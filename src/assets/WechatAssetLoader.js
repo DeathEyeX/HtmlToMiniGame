@@ -3,6 +3,7 @@ const fs = wx.getFileSystemManager();
 
 const CACHE_DIR =
   `${wx.env.USER_DATA_PATH}/three-model-cache`;
+const invalidCacheEntries = new Set();
 
 function exists(path) {
   return new Promise((resolve) => {
@@ -17,14 +18,18 @@ function exists(path) {
 async function ensureCacheDirectory() {
   if (await exists(CACHE_DIR)) return;
 
-  await new Promise((resolve, reject) => {
-    fs.mkdir({
-      dirPath: CACHE_DIR,
-      recursive: true,
-      success: resolve,
-      fail: reject
+  try {
+    await new Promise((resolve, reject) => {
+      fs.mkdir({
+        dirPath: CACHE_DIR,
+        recursive: true,
+        success: resolve,
+        fail: reject
+      });
     });
-  });
+  } catch (error) {
+    if (!(await exists(CACHE_DIR))) throw error;
+  }
 }
 
 function readFile(path) {
@@ -51,6 +56,7 @@ function copyFile(source, destination) {
 }
 
 function removeFile(path) {
+  invalidCacheEntries.add(path);
   return new Promise((resolve) => {
     fs.unlink({
       filePath: path,
@@ -94,46 +100,39 @@ function validateGLB(buffer) {
   return true;
 }
 
-function downloadFile(url, onProgress) {
-  return new Promise((resolve, reject) => {
-    const task = wx.downloadFile({
-      url,
+/** @param {import('./ModelLoadAttempt').ModelLoadAttempt} attempt */
+async function downloadFile(url, onProgress, attempt) {
+  let unsubscribe = () => {};
+  try {
+    return await new Promise((resolve, reject) => {
+      const task = wx.downloadFile({
+        url,
+        timeout: 30_000,
 
-      success(result) {
-        if (result.statusCode !== 200) {
-          reject(
-            new Error(
-              `Download HTTP ${result.statusCode}`
-            )
-          );
-          return;
-        }
+        success(result) {
+          if (result.statusCode !== 200) {
+            reject(new Error(`Download HTTP ${result.statusCode}`));
+            return;
+          }
+          resolve(result.tempFilePath);
+        },
 
-        resolve(result.tempFilePath);
-      },
-
-      fail(error) {
-        reject(error);
-      }
-    });
-
-    if (
-      task &&
-      typeof task.onProgressUpdate === 'function'
-    ) {
-      task.onProgressUpdate((result) => {
-        if (typeof onProgress === 'function') {
-          onProgress({
-            progress: result.progress,
-            totalBytesWritten:
-              result.totalBytesWritten,
-            totalBytesExpectedToWrite:
-              result.totalBytesExpectedToWrite
-          });
+        fail(error) {
+          reject(new Error(error?.errMsg || 'Model download failed'));
         }
       });
-    }
-  });
+
+      unsubscribe = attempt.onCancel((error) => {
+        reject(error);
+        task?.abort?.();
+      });
+      task?.onProgressUpdate?.((result) => {
+        if (!attempt.cancelled) onProgress?.(result);
+      });
+    });
+  } finally {
+    unsubscribe();
+  }
 }
 
 /**
@@ -141,15 +140,17 @@ function downloadFile(url, onProgress) {
  *   url: string,
  *   cacheKey?: string,
  *   version?: string,
+ *   attempt: import('./ModelLoadAttempt').ModelLoadAttempt,
  *   onProgress?: (info: {progress: number, fromCache?: boolean, totalBytesWritten?: number, totalBytesExpectedToWrite?: number}) => void
  * }} options
- * @returns {Promise<ArrayBuffer>}
+ * @returns {Promise<{buffer: ArrayBuffer, invalidate?: () => Promise<void>, save?: () => Promise<void>}>}
  */
 export async function loadRemoteGLB(options) {
   const {
     url,
     cacheKey = 'model',
     version = 'v1',
+    attempt,
     onProgress
   } = options;
 
@@ -167,16 +168,19 @@ export async function loadRemoteGLB(options) {
     throw new Error('Invalid version');
   }
 
+  attempt.check();
   await ensureCacheDirectory();
+  attempt.check();
 
   const cachePath =
     `${CACHE_DIR}/${cacheKey}-${version}.glb`;
 
   // 1. 优先读取当前版本缓存
-  if (await exists(cachePath)) {
+  if (!invalidCacheEntries.has(cachePath) && await exists(cachePath)) {
     try {
       const cached = await readFile(cachePath);
 
+      attempt.check();
       validateGLB(cached);
 
       console.log(
@@ -189,8 +193,9 @@ export async function loadRemoteGLB(options) {
         fromCache: true
       });
 
-      return cached;
+      return { buffer: cached, invalidate: () => removeFile(cachePath) };
     } catch (error) {
+      attempt.check();
       console.warn(
         '[AssetLoader] Invalid cache:',
         error
@@ -200,6 +205,7 @@ export async function loadRemoteGLB(options) {
     }
   }
 
+  attempt.check();
   // 2. 缓存不存在，下载远程资源
   console.log(
     '[AssetLoader] Download:',
@@ -208,11 +214,14 @@ export async function loadRemoteGLB(options) {
 
   const tempPath = await downloadFile(
     url,
-    onProgress
+    onProgress,
+    attempt
   );
 
   // 3. 读取并验证下载结果
+  attempt.check();
   const buffer = await readFile(tempPath);
+  attempt.check();
 
   validateGLB(buffer);
 
@@ -221,20 +230,18 @@ export async function loadRemoteGLB(options) {
     buffer.byteLength
   );
 
-  // 4. 写入持久化缓存
-  try {
-    await copyFile(tempPath, cachePath);
-
-    console.log(
-      '[AssetLoader] Cache saved:',
-      cachePath
-    );
-  } catch (error) {
-    console.warn(
-      '[AssetLoader] Cache save failed:',
-      error
-    );
-  }
-
-  return buffer;
+  return {
+    buffer,
+    // The GLTF parser must accept the contents before we persist this download.
+    async save() {
+      if (attempt.cancelled) return;
+      try {
+        await copyFile(tempPath, cachePath);
+        invalidCacheEntries.delete(cachePath);
+        console.log('[AssetLoader] Cache saved:', cachePath);
+      } catch (error) {
+        console.warn('[AssetLoader] Cache save failed:', error);
+      }
+    }
+  };
 }

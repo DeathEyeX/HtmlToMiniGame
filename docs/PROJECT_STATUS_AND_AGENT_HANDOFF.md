@@ -1,6 +1,6 @@
 # PixiWechatTest 项目状态与 Agent 开发交接
 
-核对日期为 2026-11-20。工程根目录为 `D:\Project\Web\ThreeJsTest\PixiWechatTest`。目标是可复用的微信小游戏框架，业务使用 TypeScript，3D 使用 Three.js，2D UI 暂定 PixiJS。现有 Littlest Tokyo 示例提供已跑通的 3D、Draco 和资源链路。
+核对日期为 2026-11-23。工程根目录为 `D:\Project\Web\ThreeJsTest\PixiWechatTest`。目标是可复用的微信小游戏框架，业务使用 TypeScript，3D 使用 Three.js，2D UI 暂定 PixiJS。现有 Littlest Tokyo 示例提供已跑通的 3D、Draco 和资源链路。
 
 ## 1. 接手结论
 
@@ -15,7 +15,10 @@
 - 模型输入沿用 `WechatGamePlatform` 的原生订阅。HUD 仅在手势起点命中控件时接管该手势。自动回归使用真实 OrbitControls 验证了挂载 HUD 前后场景拖动都能改变相机，也覆盖了 HUD 按下、释放、拖出和取消。
 - 用户确认真机预览可以点击。开发者工具 Stable 1.06.2402030、基础库 3.17.6 的临时探针确认 iPhone 模拟模式把鼠标点按和拖动送入 `wx.onTouchStart/Move/End`。同一业务 bundle 在干净窗口中通过按钮计数、拖出释放和模型拖动。原项目旧窗口仍不响应，调试器此前显示异常。关闭原项目窗口并重新打开同一目录后，原工程复测按钮从 `+0` 到 `+1`，拖动改变相机视角。故障定位到旧模拟器会话，工具内部失效机制尚未确认。这次排查仅更新文档，无业务代码变更。
 - `npm run build:model` 保留原 GLB／Draco 加载路径，同时挂载 Pixi HUD，是模型与 UI 的联合验收入口。两个构建命令写入同一产物路径。HTTPS 大模型冷缓存、设备兼容范围和滚轮支持仍待验证。
-- Pixi 面板覆盖计数、开关、滑块透明度、遮罩裁剪和整板拖动，旧基线已获开发者确认。入口与共享运行时现已分离，7 项自动回归和两种构建通过。新包的微信工具与真机验收由开发者执行。
+- Pixi 面板覆盖计数、开关、滑块透明度、遮罩裁剪和整板拖动，首页与模型联合构建和 WebGL2 专项已获开发者确认。本轮 17 项自动回归和七种模式的构建通过。
+- `npm.cmd run build:app:model` 提供配装台和真实模型入口，支持下载取消、失败重试、缓存失效和退出释放。
+- `build:webgl2` 和 `build:webgl2:model` 分别验证立方体和模型的 WebGL2 组合。业务模式继续使用 WebGL1。
+- `build:ui` 使用包内 PNG 验证 Sprite 和 BitmapText。开发者已确认 `Intl` 修复通过真机验收。当前磁盘产物为 `build:app`，配装台首次进入时读取同一张图集，使用 Sprite 和位图数字绘制 `01`–`03` 色块，图片失败时保留矢量色块和交互。[配装台验收](ARCHITECTURE_AND_USAGE.md#34-框架内部拆分验收)
 
 ### 既有模型基线
 
@@ -66,7 +69,7 @@
   game.js → dist/game.bundle.js ← esbuild ← src/main.ts
                   ├─ wx.createCanvas → PLATFORM.set(WechatPlatform)
                   │                   → WebGL1Renderer + OrbitControls → Pixi HUD
-                  ├─ LittlestTokyo.ts（仅模型模式）→ WechatAssetLoader → 微信下载与文件 API
+                  ├─ LittlestTokyo.ts（带 model 的构建）→ loadModelGLB → 微信下载与文件 API
                   │                   → ArrayBuffer（本地版本缓存或远程下载）
                   ├─ GLTFLoader.parse(ArrayBuffer, '', ...)
                   │       └─ WechatDracoLoader → 静态纯 JS decoder → BufferGeometry
@@ -83,11 +86,11 @@
 | `src/scenes/Cube.ts` | 无外部资源的几何回归场景。 |
 | `src/scenes/LittlestTokyo.ts` | 配置模型相机、灯光、sRGB 和 ACES。异步加载 GLB，位置 `(1, 1, 0)`，缩放 `0.01`，默认播放首段动画。通过 `update(delta)` 将 Mixer 接入共享帧循环。 |
 | `node_modules/three-platformize/src/WechatGamePlatform/index.js` | 为库提供 Canvas、最小 DOM、图片、Blob/URL、XHR 等适配。内部绑定 `wx.onTouchStart/Move/End`，向 Canvas 派发触摸和部分指针事件。GLB 内嵌纹理也依赖该平台的图片和 Blob/URL 路径。应用层应复用该事件桥接，避免重复转发。 |
-| `src/assets/WechatAssetLoader.js` | `loadRemoteGLB` 校验 URL 前缀以及 key/version 字符集。优先读取 `wx.env.USER_DATA_PATH/three-model-cache/<cacheKey>-<version>.glb`。校验 ArrayBuffer、最小长度、GLB magic、版本 2 和声明总长度。读失败或头部不合法时尝试删除后重下。下载须 HTTP 200，经临时文件读入后才尝试持久化。复制失败只告警，已读到的有效 buffer 继续供本次使用。缓存身份由 key 与版本组成。 |
+| `src/assets/modelCatalog.ts`、`loadModelGLB.ts`、`WechatAssetLoader.js` | 资源 ID 对应 URL 与版本。优先读微信持久缓存，校验 ArrayBuffer、GLB 头和声明长度，下载须 HTTP 200。解析桥把 Draco 拒绝传入失败回调。GLB 解析通过后才持久化，复制失败只告警，继续展示本次模型。 |
 | `src/draco/WechatDracoLoader.js`、`src/draco/draco_decoder.js` | 解码工厂随主包静态导入，首次解码时初始化实例级 Promise。适配版 GLTFLoader 以 `decodeDracoFile(buffer, callback, attributeIDs, attributeTypes)` 调用。实现按 Draco unique ID 读顶点属性，支持 mesh 和 point cloud 分支，mesh 按顶点数选择 16/32 位索引，有 position 时计算包围盒和包围球，并释放解码器、解码缓冲、几何对象和临时数组。当前顶点属性统一输出 Float32，`attributeTypes` 仅作为接口参数传递。 |
 | `src/rendering/AnimeToonMaterial.js` | 把 MeshStandardMaterial 转成 MeshToonMaterial，支持材质数组，保留基础色、贴图、透明、顶点色及深度等关键设置。用共享 5×1、最近邻过滤、无 mipmap 的 `LuminanceFormat` 渐变纹理。Mesh 上设置投射和接收阴影，主场景的阴影开关目前未配置。 |
 
-当前资源配置在 `src/scenes/LittlestTokyo.ts` 的 `CONFIG`。URL 为 `http://192.168.1.46:8080/model.glb`，`cacheKey` 为 `littlest-tokyo`，`modelVersion` 为 `network-test-v3`。默认缓存文件名为 `littlest-tokyo-network-test-v3.glb`。当前样本是自包含 GLB，解析参数的基础路径为空字符串。将来换成带外链纹理或缓冲区的资源时，需要明确相对路径如何解析与下载。
+当前资源配置在 `src/assets/modelCatalog.ts` 的 `littlestTokyo`。URL 为 `http://192.168.1.46:8080/model.glb`，`cacheKey` 为 `littlest-tokyo`，`version` 为 `network-test-v3`。默认缓存文件名为 `littlest-tokyo-network-test-v3.glb`。当前样本是自包含 GLB，解析参数的基础路径为空字符串。将来换成带外链纹理或缓冲区的资源时，需要明确相对路径如何解析与下载。
 
 ## 4. 从网页到小游戏的方案演进
 
@@ -116,7 +119,8 @@
 
 | 状态 | 证据或待验项 |
 | --- | --- |
-| 本轮本地通过：构建与产物 | Node 22.18.0、npm 11.5.2、esbuild 0.28.2。7 项自动测试和两种构建均通过。最小包为 1,045,062 字节，模型包为 1,753,189 字节。两份 bundle 和 `game.js` 通过 ES2019 语法解析，只有模型包引入 GLB 加载和 Draco。磁盘 bundle 为模型模式。此前统一入口时曾验证干净副本离线安装。 |
+| 本轮本地通过：构建与产物 | 17 项自动测试和七种模式的构建通过，全部产物及 `game.js` 通过 ES2019 语法解析。磁盘业务 JS 为 1,102,440 字节，共用图集为 402 字节。完整尺寸见[架构与使用指南](ARCHITECTURE_AND_USAGE.md#1-当前基线)。 |
+| Pixi UI 诊断真机通过，配装台本地通过 | 开发者确认修复 `Intl` 后，原 Pixi UI 诊断包真机验收通过。新增配装台编号色块已用软件 WebGL 验证画面和完整操作，包含首次读取、重进复用和图集加载失败；微信工具和真机待复测。 |
 | 本轮离线通过：模型链路 | 两份 Littlest Tokyo GLB 内容一致。使用真实 4,133,072 字节 GLB、真实加载及解码模块和模拟的微信下载、文件与图片接口，跑通冷加载及缓存命中，均得到 71 个网格、193,125 个顶点及动画 `Take 001`。图像接口覆盖到加载回调，实际 GPU 贴图显示由工具和真机复测。 |
 | 此前模拟器与 UI | 修复后工具可显示模型、材质与动画。同一 bundle 重开工具会话后输入恢复。计数、开关、滑块、遮罩及整板拖动已获开发者验证。 |
 | 上次用户验证通过：调试手机预览 | 手机开启「开发者调试」后可加载。设备型号、微信版本、基础库版本以及冷缓存/热缓存的完整测试记录待补。 |
@@ -139,7 +143,7 @@ python -m http.server 8080 --bind 0.0.0.0 --directory '.\WechatAssetServer'
 
 保持资源服务器终端运行，`Ctrl+C` 可停止。`WechatAssetServer` 是同级静态文件目录。若文件缺失，可从 `littlest-tokyo-vite/public/models/LittlestTokyo.glb` 复制为该目录的 `model.glb`。网页副本也缺失时，在 `littlest-tokyo-vite` 安装依赖并执行 `npm.cmd run assets`，该脚本从上游下载资源。
 
-另开终端执行以下命令，验证 HTTP 200 及当前模型长度。随后用同一 Wi-Fi 的手机访问同一 URL，排除 Windows 入站防火墙、访客 Wi-Fi 隔离、VPN、地址变化或端口冲突。以 `ipconfig` 中手机可达的网卡 IPv4 为准。地址变动时调整 `CONFIG.modelURL` 并重建，手机使用电脑的 LAN 地址。
+另开终端执行以下命令，验证 HTTP 200 及当前模型长度。随后用同一 Wi-Fi 的手机访问同一 URL，排除 Windows 入站防火墙、访客 Wi-Fi 隔离、VPN、地址变化或端口冲突。以 `ipconfig` 中手机可达的网卡 IPv4 为准。地址变动时调整资源清单的 `littlestTokyo.url` 并重建。
 
 ```powershell
 curl.exe --noproxy '*' --connect-timeout 5 -I 'http://192.168.1.46:8080/model.glb'
@@ -161,14 +165,14 @@ Get-Item '.\dist\game.bundle.js'
 
 ### 7.3 手机局域网调试复测
 
-1. 手机与电脑使用互通的 Wi-Fi，确认服务器持续运行；如需验证冷下载，为本次测试临时换一个从未使用的 `modelVersion`（只使用字母、数字、下划线、连字符），然后重建。
+1. 手机与电脑使用互通的 Wi-Fi，确认服务器持续运行。如需验证冷下载，临时换一个从未使用的资源 `version`，只使用字母、数字、下划线和连字符，然后重建。
 2. 在开发者工具点击「预览」生成新二维码，用手机微信扫码，在小游戏菜单开启「开发者调试」，按界面提示重进。开发者工具的「真机调试」入口可用于排查，但其测试结果应单独记录。
 3. 冷启动需要看到 `[AssetLoader] Download`、服务器收到 `GET /model.glb` 并返回 200、`Download completed` 及最终 `Scene ready`。冷启动后用同样的包重新打开，看到 `Cache hit`、场景恢复且无重复 GET，可作为热缓存验收。需要复测缓存损坏时仅处理对应测试版本的文件。
 
 ### 7.4 关闭调试的普通扫码验收
 
 1. 将同一个 GLB 部署到手机可访问、证书有效的 HTTPS 静态服务或 CDN。在微信公众平台为当前小游戏 AppID 登记对应的 `downloadFile` 合法域名，核对下载最终主机及后台生效配置。
-2. 切换 `modelURL` 至 HTTPS，并换成全新 `modelVersion`，再构建和生成预览二维码。验收时关闭开发者工具的跳过校验设置和手机端「开发者调试」。推荐记录本次的 AppID、有效基础库、微信版本、设备系统及资源版本。
+2. 切换资源的 `url` 至 HTTPS，并换成全新 `version`，再构建和生成预览二维码。验收时关闭开发者工具的跳过校验设置和手机端「开发者调试」。推荐记录本次的 AppID、有效基础库、微信版本、设备系统及资源版本。
 3. 用授权手机普通扫码，记录服务端 200、无缓存下载证据和模型显示及动画。再次打开验证热缓存。至少覆盖目标 iOS 与 Android 各一台，其他设备按发布范围扩展。
 
 ### 7.5 按首个错误定位
@@ -178,13 +182,13 @@ Get-Item '.\dist\game.bundle.js'
 | 无 `Starting` 或生成不了二维码 | 项目导入根目录、`game.js` 是否加载新 bundle、预览打包错误、ES2019、`es6: false`。 |
 | 有启动日志，缺少 `Renderer initialized` | `wx` 初始化、Canvas、平台注册顺序、窗口和像素比数值、WebGL1 上下文。 |
 | 出现底色，下载后无 `Resource ready` | 缓存文件读取、下载失败信息、HTTP 返回状态、合法域名、Wi-Fi、防火墙、GLB 头部和长度。 |
-| 有 `Resource ready`，缺少 `GLB parsed` | Draco 工厂与回调是否完成、纹理适配、压缩 bufferView 与属性。有些解码异常可能使外层 GLTF Promise 悬挂。 |
+| 有 `Resource ready`，缺少 `GLB parsed` | 查 `Model loading failed` 的首条错误，核对压缩 bufferView、属性与纹理适配。当前桥接会传播 Draco 拒绝，场景尝试有 45 秒限制。 |
 | 已有 `Scene ready`，屏幕仍异常 | 相机目标与模型变换、渲染循环、有效绘图尺寸、WebGL 纹理格式与 GL 错误。 |
 
 ## 8. 遗留问题和必须保留的实现
 
 - **保留构建与平台顺序。** 微信入口继续指向已生成的 ES2019 bundle。先创建微信 Canvas 并注册 `WechatGamePlatform`，再创建 Renderer 与 Controls。WebGL1 需保留有限 DPI 和兼容的 Toon 渐变格式。升级包、渲染器或构建目标时需重复预览打包与真机验收。
-- **保留 GLB 字节链路。** 当前稳定路径是 `wx.downloadFile → wx 文件读取 → GLB 校验 → GLTFLoader.parse`，保留缓存版本隔离和缓存写失败时继续使用内存数据的行为。缓存只验容器头，没有内容哈希、自动淘汰、下载去重或应用级超时/重试。URL 换源而 key/version 相同时仍会命中此前缓存。结构通过头部检查但内容解析失败的缓存，当前不会自动失效。
+- **保留 GLB 字节链路。** 当前路径是 `wx.downloadFile → wx 文件读取 → GLB 校验 → GLTFLoader.parse → 缓存`。解析失败的缓存尝试删除，当前进程的重试跳过该条缓存。下载在途退出会取消，已开始的解析结果在退出后释放。保留版本隔离与缓存写失败时继续使用内存数据的行为。更换 URL 时同步更新版本，自动淘汰和内容哈希待后续按业务需求评估。
 - **保留 Draco 接口与释放。** 同版本的 `three-platformize` GLTFLoader 和几何对象配合使用，保留静态工厂、回调契约、unique ID 映射、索引选择和显式释放。已在本地用损坏的 Draco 片段复现，解码 Promise 拒绝后 GLTFLoader 外层回调无法结算。该分支只接成功回调，需补错误传播、超时、可见失败和重试。解码同步计算仍在主线程，首帧卡顿、峰值内存与释放行为待实测。
 - **补齐运行反馈与生命周期。** 模型加载错误和下载进度只进入日志，模型失败后可能只剩背景与 HUD。模型入口和立方体共用前后台暂停、恢复及尺寸监听，最新包待界面复测。阴影当前关闭。
 - **保全工作区与产物策略。** `e709c0f` 可回查历史入口和独立试验。本轮确认实际打包依赖后移除旧 JS 脚本、文本解码副本、试验 bundle 和元数据，保留归档 `libs/` 且排除在打包规则外。发布前核对工具包分析和产物模式。

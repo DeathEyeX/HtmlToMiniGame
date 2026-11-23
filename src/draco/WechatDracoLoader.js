@@ -7,8 +7,10 @@ import {
 } from 'three-platformize';
 
 export class WechatDracoLoader {
-  constructor() {
+  /** @param {((error: unknown) => void) | undefined} onDecodeError */
+  constructor(onDecodeError = undefined) {
     this.decoderPromise = null;
+    this.onDecodeError = onDecodeError;
   }
 
   preload() {
@@ -30,7 +32,7 @@ export class WechatDracoLoader {
     attributeIDs = {},
     attributeTypes = {}
   ) {
-    return this.decodeGeometry(
+    const decoded = this.decodeGeometry(
       buffer,
       attributeIDs,
       attributeTypes
@@ -41,6 +43,9 @@ export class WechatDracoLoader {
 
       return geometry;
     });
+    // The platformized GLTFLoader only observes the geometry callback.
+    if (this.onDecodeError) void decoded.catch(this.onDecodeError);
+    return decoded;
   }
 
   async decodeGeometry(buffer, attributeIDs, attributeTypes) {

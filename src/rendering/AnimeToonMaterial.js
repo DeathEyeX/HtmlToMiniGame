@@ -2,6 +2,7 @@
 import {
   DataTexture,
   LuminanceFormat,
+  RedFormat,
   UnsignedByteType,
   NearestFilter,
   ClampToEdgeWrapping,
@@ -10,22 +11,23 @@ import {
   Color
 } from 'three-platformize';
 
-const gradient = new DataTexture(
-  new Uint8Array([105, 150, 195, 230, 255]),
-  5,
-  1,
-  LuminanceFormat,
-  UnsignedByteType
-);
+function createGradient(format) {
+  const texture = new DataTexture(new Uint8Array([105, 150, 195, 230, 255]), 5, 1, format, UnsignedByteType);
+  texture.minFilter = NearestFilter;
+  texture.magFilter = NearestFilter;
+  texture.wrapS = ClampToEdgeWrapping;
+  texture.wrapT = ClampToEdgeWrapping;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  return texture;
+}
 
-gradient.minFilter = NearestFilter;
-gradient.magFilter = NearestFilter;
-gradient.wrapS = ClampToEdgeWrapping;
-gradient.wrapT = ClampToEdgeWrapping;
-gradient.generateMipmaps = false;
-gradient.needsUpdate = true;
+const webGL1Gradient = createGradient(LuminanceFormat);
+let webGL2Gradient;
 
-export function applyAnimeToon(model) {
+export function applyAnimeToon(model, usesWebGL2 = false) {
+  // Three's WebGL2 upload uses immutable storage, which requires a sized format (R8).
+  const gradient = usesWebGL2 ? (webGL2Gradient ??= createGradient(RedFormat)) : webGL1Gradient;
   let converted = 0;
 
   model.traverse((object) => {

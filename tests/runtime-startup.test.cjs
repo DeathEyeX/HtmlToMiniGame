@@ -12,20 +12,28 @@ const { outputFiles: [bundle] } = buildSync({
   write: false
 });
 
-test('the shared runtime renders while HUD loads and resumes a single frame loop', async () => {
+test('the shared runtime resumes and switches scenes within a single frame loop', async () => {
   const frames = new Map();
   const listeners = {};
   const draws = [];
   const deltas = [];
   const rendererSizes = [];
   const hudSizes = [];
+  const disposed = [];
+  let renderedCamera;
   const canvas = {};
   const gl = { getParameter: () => 'WebGL 1.0' };
   const renderer = {
+    outputEncoding: 1,
+    toneMapping: 0,
+    toneMappingExposure: 1,
     setPixelRatio(ratio) { assert.equal(ratio, 2); },
     setSize(...size) { rendererSizes.push(size); },
     resetState() { draws.push('reset'); },
-    render() { draws.push('three'); },
+    render(_scene, camera) {
+      renderedCamera = camera;
+      draws.push('three');
+    },
     getContext: () => gl
   };
   let finishHud;
@@ -67,17 +75,21 @@ test('the shared runtime renders while HUD loads and resumes a single frame loop
     callback(time);
   }
 
-  const started = output.exports.startGame(() => ({
-    camera: { updateProjectionMatrix() {} },
-    controls: { update() {} },
-    update: (delta) => deltas.push(delta)
-  }), { tag: '[Test]', hudReadyMessage: 'Ready', showHudErrorModal: false });
+  const makeScene = (id) => ({
+    camera: { id, updateProjectionMatrix() {} },
+    controls: { update() {}, dispose() { disposed.push(`${id} controls`); } },
+    update: (delta) => deltas.push(delta),
+    dispose() { disposed.push(`${id} resources`); }
+  });
+  const started = output.exports.startGame(() => makeScene('home'), {
+    tag: '[Test]', hudReadyMessage: 'Ready', showHudErrorModal: false
+  });
   await Promise.resolve();
   draw(0);
   assert.deepEqual(draws, ['reset', 'three']);
 
   finishHud(hud);
-  await started;
+  const game = await started;
   listeners.resize({ windowWidth: 568, windowHeight: 320 });
   assert.deepEqual(rendererSizes, [[320, 568], [568, 320]]);
   assert.deepEqual(hudSizes, [[320, 568, 2], [568, 320, 2]]);
@@ -93,6 +105,27 @@ test('the shared runtime renders while HUD loads and resumes a single frame loop
   assert.deepEqual(deltas, [0.05]);
   draw(10_016);
   assert.deepEqual(deltas, [0.05, 0.016]);
+  assert.equal(renderedCamera.id, 'home');
+
+  const pendingFrame = frames.keys().next().value;
+  assert.throws(() => game.switchScene(() => { throw new Error('scene failed'); }), /scene failed/);
+  assert.deepEqual(disposed, []);
+  game.switchScene(() => ({ ...makeScene('workbench'), renderSettings: { outputEncoding: 2, toneMapping: 5 } }));
+  assert.deepEqual(disposed, ['home controls', 'home resources']);
+  assert.deepEqual([...frames.keys()], [pendingFrame]);
+  draw(50_000);
+  assert.equal(renderedCamera.id, 'workbench');
+  assert.equal(renderedCamera.aspect, 568 / 320);
+  assert.equal(renderer.outputEncoding, 2);
+  assert.equal(renderer.toneMapping, 5);
+  assert.deepEqual(deltas, [0.05, 0.016]);
+
+  game.switchScene(() => makeScene('home again'));
+  draw(50_016);
+  assert.equal(renderedCamera.id, 'home again');
+  assert.equal(renderer.outputEncoding, 1);
+  assert.equal(renderer.toneMapping, 0);
+  assert.deepEqual(disposed.slice(-2), ['workbench controls', 'workbench resources']);
   listeners.hide();
   assert.equal(frames.size, 0);
 });
