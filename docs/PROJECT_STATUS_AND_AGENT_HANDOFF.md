@@ -4,7 +4,7 @@
 
 ## 1. 接手结论
 
-[架构与使用指南](ARCHITECTURE_AND_USAGE.md)说明如何构建和扩展。[QA 文档](QA.md)收录历史问题、处理方案及验证状态。本文保留模型迁移和实施任务。
+[架构与使用指南](ARCHITECTURE_AND_USAGE.md)说明如何构建和扩展。[QA 文档](QA.md)收录历史问题、处理方案及验证状态。[框架目标架构](FRAMEWORK_ARCHITECTURE.md)记录当前重构路线和阶段验收。本文保留模型迁移和首版任务。
 
 ### 本轮实现状态
 
@@ -15,7 +15,7 @@
 - 模型输入沿用 `WechatGamePlatform` 的原生订阅。HUD 仅在手势起点命中控件时接管该手势。自动回归使用真实 OrbitControls 验证了挂载 HUD 前后场景拖动都能改变相机，也覆盖了 HUD 按下、释放、拖出和取消。
 - 用户确认真机预览可以点击。开发者工具 Stable 1.06.2402030、基础库 3.17.6 的临时探针确认 iPhone 模拟模式把鼠标点按和拖动送入 `wx.onTouchStart/Move/End`。同一业务 bundle 在干净窗口中通过按钮计数、拖出释放和模型拖动。原项目旧窗口仍不响应，调试器此前显示异常。关闭原项目窗口并重新打开同一目录后，原工程复测按钮从 `+0` 到 `+1`，拖动改变相机视角。故障定位到旧模拟器会话，工具内部失效机制尚未确认。这次排查仅更新文档，无业务代码变更。
 - `npm run build:model` 保留原 GLB／Draco 加载路径，同时挂载 Pixi HUD，是模型与 UI 的联合验收入口。两个构建命令写入同一产物路径。HTTPS 大模型冷缓存、设备兼容范围和滚轮支持仍待验证。
-- Pixi 面板已覆盖计数、开关、滑块透明度、遮罩裁剪和整板拖动，开发者已确认统一入口前的操作通过。Agent 本轮完成干净安装、6 项自动回归和两种构建，开发者负责新包的微信工具与真机验收。
+- Pixi 面板覆盖计数、开关、滑块透明度、遮罩裁剪和整板拖动，旧基线已获开发者确认。入口与共享运行时现已分离，7 项自动回归和两种构建通过。新包的微信工具与真机验收由开发者执行。
 
 ### 既有模型基线
 
@@ -78,7 +78,9 @@
 | `game.js`、`game.json` | 微信加载 bundle，运行方向为竖屏。bundle 启动依赖小游戏的 `wx` 等全局对象。 |
 | `project.config.json`、`project.private.config.json` | `compileType: game`，当前基础库配置为 `latest`。公开配置的 AppID 用于导入，私有配置只覆盖项目名。当前 `es6: false`、`minified: true`、`urlCheck: false`。打包忽略 `node_modules`、`src`、`assets`、`.git`、两个 npm 清单文件。源码更新后须重新生成 bundle。 |
 | `package.json`、`package-lock.json` | esbuild 锁定 0.28.2，构建参数固定为浏览器平台、IIFE、压缩、ES2019，并将 `fs` 和 `path` 标为外部模块。运行依赖锁定 `three-platformize@1.133.3` 和 `pixi.js@8.23.0`。已移除旧实验遗留的独立 `three`、`draco3d` 和 Git 适配包。 |
-| `src/main.ts` | 应用唯一入口。创建 Canvas、平台和渲染器，调度相机、场景更新及 HUD，处理尺寸和前后台。DPR 上限 2，动画步长上限 0.05 秒。 |
+| `src/main.ts` | 应用唯一入口。选择立方体或模型场景后调用共享运行时。 |
+| `src/runtime/startGame.ts` | 创建 Canvas、平台和渲染器，调度相机、场景更新及 HUD，处理尺寸和前后台。DPR 上限 2，动画步长上限 0.05 秒。 |
+| `src/scenes/Cube.ts` | 无外部资源的几何回归场景。 |
 | `src/scenes/LittlestTokyo.ts` | 配置模型相机、灯光、sRGB 和 ACES。异步加载 GLB，位置 `(1, 1, 0)`，缩放 `0.01`，默认播放首段动画。通过 `update(delta)` 将 Mixer 接入共享帧循环。 |
 | `node_modules/three-platformize/src/WechatGamePlatform/index.js` | 为库提供 Canvas、最小 DOM、图片、Blob/URL、XHR 等适配。内部绑定 `wx.onTouchStart/Move/End`，向 Canvas 派发触摸和部分指针事件。GLB 内嵌纹理也依赖该平台的图片和 Blob/URL 路径。应用层应复用该事件桥接，避免重复转发。 |
 | `src/assets/WechatAssetLoader.js` | `loadRemoteGLB` 校验 URL 前缀以及 key/version 字符集。优先读取 `wx.env.USER_DATA_PATH/three-model-cache/<cacheKey>-<version>.glb`。校验 ArrayBuffer、最小长度、GLB magic、版本 2 和声明总长度。读失败或头部不合法时尝试删除后重下。下载须 HTTP 200，经临时文件读入后才尝试持久化。复制失败只告警，已读到的有效 buffer 继续供本次使用。缓存身份由 key 与版本组成。 |
@@ -114,7 +116,7 @@
 
 | 状态 | 证据或待验项 |
 | --- | --- |
-| 本轮本地通过：构建与产物 | Node 22.18.0、npm 11.5.2、esbuild 0.28.2。干净副本从本地缓存 `npm ci --offline`、6 项自动测试及两种构建均通过。最小包为 1,044,765 字节，模型包为 1,752,843 字节。两份 bundle 和 `game.js` 通过 ES2019 语法解析，只有模型包引入 GLB 加载和 Draco。磁盘 bundle 为模型模式。 |
+| 本轮本地通过：构建与产物 | Node 22.18.0、npm 11.5.2、esbuild 0.28.2。7 项自动测试和两种构建均通过。最小包为 1,045,062 字节，模型包为 1,753,189 字节。两份 bundle 和 `game.js` 通过 ES2019 语法解析，只有模型包引入 GLB 加载和 Draco。磁盘 bundle 为模型模式。此前统一入口时曾验证干净副本离线安装。 |
 | 本轮离线通过：模型链路 | 两份 Littlest Tokyo GLB 内容一致。使用真实 4,133,072 字节 GLB、真实加载及解码模块和模拟的微信下载、文件与图片接口，跑通冷加载及缓存命中，均得到 71 个网格、193,125 个顶点及动画 `Take 001`。图像接口覆盖到加载回调，实际 GPU 贴图显示由工具和真机复测。 |
 | 此前模拟器与 UI | 修复后工具可显示模型、材质与动画。同一 bundle 重开工具会话后输入恢复。计数、开关、滑块、遮罩及整板拖动已获开发者验证。 |
 | 上次用户验证通过：调试手机预览 | 手机开启「开发者调试」后可加载。设备型号、微信版本、基础库版本以及冷缓存/热缓存的完整测试记录待补。 |

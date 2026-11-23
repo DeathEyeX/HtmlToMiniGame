@@ -1,6 +1,6 @@
 # PixiWechatTest 架构与使用指南
 
-核对日期为 2026-11-20。这里描述当前工程的 TypeScript 入口、两个构建模式、平台适配、UI 扩展和验收流程。[迁移过程及任务拆分](PROJECT_STATUS_AND_AGENT_HANDOFF.md) · [QA 与故障处理记录](QA.md)
+核对日期为 2026-11-20。这里描述当前工程的 TypeScript 入口、两个构建模式、平台适配、UI 扩展和验收流程。[目标架构与实施路线](FRAMEWORK_ARCHITECTURE.md) · [迁移与交接](PROJECT_STATUS_AND_AGENT_HANDOFF.md) · [QA 与故障处理记录](QA.md)
 
 ## 1. 当前基线
 
@@ -11,9 +11,9 @@
 | 最小启动和平台排错 | `npm.cmd run build` | 程序化立方体和同一套 Pixi 面板 | 无模型下载、Draco 或项目外部贴图 |
 | 3D 与 UI 联调 | `npm.cmd run build:model` | Littlest Tokyo GLB、Toon 材质、动画和 Pixi 面板 | 局域网 HTTP 资源或已命中的版本缓存 |
 | 静态检查 | `npm.cmd run typecheck` | TypeScript 严格类型检查 | 覆盖 `src/**/*.ts` |
-| 自动回归 | `npm.cmd test` | 微信运行时全局兼容、真实 OrbitControls 和触摸捕获测试 | 本地 Node 与已安装依赖 |
+| 自动回归 | `npm.cmd test` | 微信运行时全局兼容、真实 OrbitControls、触摸捕获、共享帧循环与前后台测试 | 本地 Node 与已安装依赖 |
 
-两个构建共用 `bundle` 脚本，以构建期常量 `MODEL_DEMO` 选择模式，写入同一个 `dist/game.bundle.js`。微信工具运行最后一次构建的模式。最小模式为 1,044,765 字节，模型模式为 1,752,843 字节，均通过 ES2019 语法解析。依赖图确认最小包未纳入模型、资源加载器或 Draco。实际预览包大小以微信开发者工具为准。
+两个构建共用 `bundle` 脚本，以构建期常量 `MODEL_DEMO` 选择模式，写入同一个 `dist/game.bundle.js`。微信工具运行最后一次构建的模式。最小模式为 1,045,062 字节，模型模式为 1,753,189 字节，均通过 ES2019 语法解析。依赖图确认最小包未纳入模型、资源加载器或 Draco。实际预览包大小以微信开发者工具为准。
 
 ## 2. 运行架构
 
@@ -23,9 +23,9 @@ npm run build:model → MODEL_DEMO=true
                            ↓
               src/main.ts → esbuild → dist/game.bundle.js ← game.js
                            ↓
-                  wx.createCanvas → WechatPlatform
+          runtime/startGame.ts → wx.createCanvas → WechatPlatform
                            ↓
-   立方体 / LittlestTokyo.ts → Three 场景 / 相机 / OrbitControls
+   Cube.ts / LittlestTokyo.ts → Three 场景 / 相机 / OrbitControls
                            ↓
            同一上屏 Canvas 和同一 WebGL1 上下文
                            ↓
@@ -39,7 +39,9 @@ wx.downloadFile / 版本缓存 → ArrayBuffer → GLTFLoader.parse
 | 模块 | 职责与依赖 |
 | --- | --- |
 | `game.js`、`game.json`、`project.config.json` | 微信入口、竖屏、小游戏项目和打包规则。保持 `es6: false`，由 esbuild 提供兼容语法。源码、测试、文档和归档的 `libs/` 由打包规则排除。 |
-| `src/main.ts` | 唯一 TypeScript 入口，注册平台，持有 Canvas、渲染器、RAF、尺寸与前后台处理。按构建模式生成程序化立方体或创建模型场景，然后挂载 HUD。 |
+| `src/main.ts` | 唯一 TypeScript 入口，按构建模式选择场景工厂，然后启动共享运行时。 |
+| `src/runtime/startGame.ts` | 持有 Canvas、平台、渲染器、HUD、RAF、尺寸与前后台处理。绘制顺序为 Three 后叠加 Pixi。 |
+| `src/scenes/Cube.ts` | 构建程序化立方体，以及独立的相机、灯光和旋转更新。 |
 | `src/scenes/LittlestTokyo.ts` | 模型联调模块，持有资源 URL、版本、相机、灯光和 AnimationMixer，通过 `update(delta)` 接入共享帧循环。模型下载与 HUD 初始化分开，进度与错误进入控制台。 |
 | `src/platform/WechatPlatform.ts` | 继承已验证的 `WechatGamePlatform`。沿用其微信原生触摸订阅，仅在手势开始时询问 HUD 是否接管按钮、开关、滑块或拖动把手。起点在场景的手势走原 OrbitControls。 |
 | `src/ui/loadHud.ts` | 在延迟加载 Pixi 之前补齐缺失的 `navigator` 和 `performance.now()`。构建把 Pixi 的裸 `performance` 引用映射到 `globalThis.performance`。 |
@@ -107,13 +109,13 @@ npm.cmd run build:model
 | 拖动与命中 | 拖动顶部双线把手，面板与所有子控件一起移动。放下后在新位置点击 `+`，计数继续增加。 |
 | 3D 输入隔离 | 在面板外开始拖动，模型视角旋转，面板位置与计数保持原样。 |
 
-统一入口前，开发者已确认上述操作通过，当前记录未附完整设备信息。此前模拟器已观察到开关、计数、滑块透明度和整块面板移动。本轮 6 项自动回归、类型检查和两种构建通过。统一入口后的实际 GPU 画面、设备差异与生命周期由开发者按表复测。
+此前开发者已确认上述操作，记录未附完整设备信息。本轮 7 项自动回归、类型检查和两种构建通过。共享运行时重构后的 GPU 画面、设备差异与生命周期由开发者按表复测。
 
 新增控件时在 HUD 内定义视觉、命中区域和状态更新，单击动作在 `release` 内提交，拖动控件在 `move` 内更新，取消时恢复临时交互状态。新增关卡可参照 `src/scenes/LittlestTokyo.ts` 提供相机、控制器和更新函数，在 `src/main.ts` 选择要运行的场景，复用平台、RAF、HUD 与资源模块。
 
 ## 5. 审查结论与下一阶段
 
-当前可作为 **TypeScript 微信框架和 Three + Pixi 交互的开发基线**。继续保留已验收的共享 Canvas、原生触摸订阅、GLB／Draco 和 ES2019 启动顺序。推荐按以下顺序收敛：
+当前可作为 **TypeScript 微信框架和 Three + Pixi 交互的开发基线**。后续从场景切换、资源管理推进到发布构建，详见[目标架构的分阶段验收](FRAMEWORK_ARCHITECTURE.md#5-分阶段实施与验收)。
 
 | 顺序 | 事项 | 完成标准 |
 | --- | --- | --- |
