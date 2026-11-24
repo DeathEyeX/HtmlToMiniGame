@@ -16,5 +16,9 @@
   "nohara-house": {
     "entry": "src/game/apps/nohara-house/main.ts",
     "packagedResources": "nohara-house/packaged"
+  },
+  "drift-era": {
+    "entry": "src/game/apps/drift-era/main.ts",
+    "packagedResources": "drift-era/packaged"
   }
 }
