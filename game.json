@@ -1,9 +1,3 @@
 {
-  "deviceOrientation": "portrait",
-  "subpackages": [
-    {
-      "name": "ocean-shelter",
-      "root": "dist/resources/ocean-shelter"
-    }
-  ]
+  "deviceOrientation": "portrait"
 }

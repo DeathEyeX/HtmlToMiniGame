@@ -16,6 +16,14 @@
 
 **验证**　当时全仓类型检查和 26 项测试通过。默认分包及本机 HTTP 下载路径经微信模拟器验证，公网 HTTPS 真机链路待验。改资源加载时，复测同一资源的并发请求、分包挂载失败后重试、非 200 和临时文件失效。改打包时，复测目标隔离、远程模式的主包文件和切回默认目标后的分包声明。 [加载器测试](../../tests/resource-loader.test.cjs) · [构建测试](../../tests/build-targets.test.cjs)
 
+## 单 App 网页联调
+
+**范围**　2026-11-24，`npm.cmd run dev:web -- <目标名>`。适用于单 App 首屏、Three.js 场景、Pixi HUD、指针输入和本地素材联调。 [开发工作流](../AGENT_WORKFLOW.md#4-本地网页联调)
+
+**改动**　网页构建复用微信目标的入口、渲染器和素材清单。esbuild 在本机端口提供内存产物和刷新事件。浏览器入口先安装 Canvas、指针和资源的兼容层，再启动目标 App。旧模型示例复用 GLTF 与 Draco 解析，通过浏览器 HTTP 读取模型。微信构建继续由 `build:target` 发布到项目的 `dist/` 并同步 `game.json`。 [网页命令](../../scripts/dev-web.cjs) · [浏览器兼容层](../../src/framework/platform/browser/installBrowserWx.ts)
+
+**验证**　11 个目标均能生成网页产物。全仓类型检查和 29 项自动测试通过。无头 Edge 验证 `nohara-house` 切房、拖动和调整视口，`ocean-shelter` 的 GLB、外部贴图、HDR 和 HUD，以及 `model-viewer` 的 WebGL2 和 Draco 模型。在临时工程验证了已有素材修改会触发网页刷新事件，并完成 `nohara-house` 和 `ocean-shelter` 的微信构建，其中 `ocean-shelter` 构建时网页服务同时运行。本工程原有 `dist/`、`game.json` 的文件清单与 SHA-256 一致，当前微信产物为 `nohara-house`。微信模拟器及真机未在本次复测。 [网页构建回归](../../tests/web-preview.test.cjs)
+
 ## Agent 工作流审核
 
 **范围**　2026-11-24，审核新 App 接入、共享工作区联调与开发归档。
@@ -25,3 +33,13 @@
 **改动**　在父工作区添加只指向本工程的指引，并在项目 README 给出推荐的启动目录。工作流增加 App 资源模式切换、双模式验收和并行联调的构建分工。九个目标及 22 项测试保留为历史快照，当前清单从构建命令查询。 [项目入口](../../README.md) · [开发工作流](../AGENT_WORKFLOW.md) · [构建快照](../ARCHITECTURE_AND_USAGE.md#13-2026-11-23-构建快照)
 
 **验证**　父目录和项目内两份指引都链接到同一工作流。106 个本地链接及锚点通过检查。`npm.cmd run build:list` 列出 10 个目标，`npm.cmd run typecheck` 和 `npm.cmd test` 通过，共 26 项自动测试。本次为文档更新，微信端验证沿用对应功能记录。
+
+### App 目录与注释
+
+**范围**　2026-11-24，`ocean-shelter`、`nohara-house`、`showcase` 和 `pixi-ui`。
+
+**改动**　前两个 App 用 `hud/` 和 `three/` 组织专属实现。Showcase 与 Pixi 诊断只需归类本地 HUD，场景由公共模块提供。各构建入口仍在 App 根目录。同步更新测试引用和两套字形脚本的输出路径。工作流补充注释要求，代码中就初始化顺序、资源释放和镜头留白补了说明。 [开发工作流](../AGENT_WORKFLOW.md#代码注释)
+
+**验证**　全仓类型检查和 27 项测试通过。在隔离目录成功构建 `pixi-ui`、`showcase`、`showcase-model`、`ocean-shelter` 和 `nohara-house`，另核对海上避难所远程模式仅保留主包 HUD 素材。两套脚本再生的字形索引和图集像素一致。工作区现有 `nohara-house` bundle 与新构建逐字节一致。本次未运行微信模拟器、预览和真机。
+
+**工作流补充**　明确 Web 与微信共用 App 逻辑，平台差异由框架适配。将 Three.js 场景常见的注释检查项写入工作流，覆盖坐标与镜头、关键参数、绘制顺序和资源生命周期。 [代码注释](../AGENT_WORKFLOW.md#代码注释) · [网页联调](../AGENT_WORKFLOW.md#4-本地网页联调)

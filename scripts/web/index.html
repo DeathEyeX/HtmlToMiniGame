@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PixiWechatTest 预览</title>
+  <style>
+    html, body { margin: 0; overflow: hidden; background: #dce6ed; }
+    #game { display: block; width: 100vw; height: 100vh; touch-action: none; }
+    #status {
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      box-sizing: border-box; width: max-content; max-width: calc(100vw - 24px);
+      padding: 8px 12px; color: white; background: #24333f; border-radius: 6px;
+      font: 14px system-ui, sans-serif; white-space: pre-wrap; overflow-wrap: anywhere;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="status" role="status" hidden></div>
+  <script>new EventSource('/esbuild').addEventListener('change', () => location.reload());</script>
+  <script src="/platform.js"></script>
+  <script src="/game.js"></script>
+</body>
+</html>

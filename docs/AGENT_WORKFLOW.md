@@ -17,6 +17,8 @@
 | `src/game/common/` | 多个 App 实际复用的业务模块、组件和资源描述。 |
 | `src/framework/` | 微信平台适配、共享运行时、渲染、输入和资源读取等通用能力。 |
 
+App 入口与场景切换的装配代码放在 App 根目录。App 自有的 Pixi 视图、布局及 HUD 专属资源代码放在 `hud/`。Three.js 场景、相机、模型及场景专属资源代码放在 `three/`。两侧都用到的业务数据留在同一个 App 内，例如 `ocean-shelter/content.ts`。按实际职责建目录。只装配公共实现的 App 可以只保留入口。 [海上避难所](../src/game/apps/ocean-shelter/main.ts) · [野原家的小屋](../src/game/apps/nohara-house/main.ts)
+
 **新业务走独立目标。** 在 `src/game/apps/<app-id>/main.ts` 调用 `startGame`，并在 `scripts/targets.json` 增加同名目标。运行该目标的产物应直接进入 App 首屏。任务需要集成首页入口时，由 `showcase` 自己装配导航。
 
 **依赖方向为 `apps → common → framework`。** App 可以直接引用框架。禁止跨 App 导入，也禁止公共业务或框架反向引用 App。优先使用现有框架接口，需要补足当前业务所需的共享能力时，再扩展框架。共享改动保留既有调用方式，并为新增行为补回归。
@@ -25,6 +27,12 @@
 - 通过 `startGame` 的 HUD 加载回调延迟引入 Pixi 模块和扩展，保留微信兼容处理的初始化顺序。框架管理一张上屏 Canvas 和一条帧循环，同一帧先绘制 Three.js，再绘制 Pixi HUD。 [HUD 装配](../src/framework/ui/loadHud.ts)
 - 触摸开始时由 HUD 或场景接管整段手势。按钮在有效释放时执行，拖动和取消由当前接管者处理。切换场景时，旧场景负责释放自己创建的资源，包括退出后才就绪的异步结果。 [微信触摸分流](../src/framework/platform/WechatPlatform.ts)
 - 渲染版本由目标的 `renderer` 配置选择，省略时使用 WebGL1。需要 WebGL2 的能力应在对应目标和设备上验证。 [渲染配置](ARCHITECTURE_AND_USAGE.md#11-入口与渲染配置)
+
+### 代码注释
+
+- Agent 新增或修改代码时，为代码本身看不出的业务规则、平台限制、初始化顺序和资源生命周期补上必要注释。把原因写在相关代码旁，例如「场景可能在模型加载完成前退出，未挂载的模型要在这里释放」。
+- 修改 Three.js 场景或模型时，重点核对坐标系和相机约束、影响构图或交互的关键参数、绘制顺序、资源共享和释放。把相关设计原因写在定义或实现旁。例如，剖面房间保留两面固定墙，镜头因此只在开放侧转动。
+- 注释沿用模块现有语言和业务术语。能从命名看懂的逻辑直接读代码，去掉逐行转述、模板套话和没有依据的评价。修改逻辑时同步更新受影响的注释。
 
 ## 3. 声明主包和运行资源
 
@@ -38,11 +46,30 @@ App 专属素材使用与代码同名的 `media/<app-id>/`。共用文件由实�
 
 新 App 通过 [共享资源加载器](../src/framework/assets/createResourceLoader.ts) 的 `loadImage(relativePath)` 和 `readBinary(relativePath)` 读取资源。框架负责分包挂载和远程下载，App 负责把资源交给 Three.js 或 PixiJS、显示加载状态，以及选择失败提示、重试或降级。远程资源服务保持运行目录结构，可以通过版本目录区分内容。 [运行时资源配置](ARCHITECTURE_AND_USAGE.md#运行时资源)
 
-支持远程模式的 App 要读取 `GAME_RUNTIME_ASSET_URL`。有地址时向加载器传入 `{ kind: 'remote', baseUrl }`，默认构建使用 `{ kind: 'subpackage', name, root }`，其中 `name` 是目标名，`root` 是 `dist/resources/<目标名>/`。主包素材继续使用自己的 `package` 来源。 [海上避难所资源入口](../src/game/apps/ocean-shelter/assets.ts)
+支持远程模式的 App 要读取 `GAME_RUNTIME_ASSET_URL`。有地址时向加载器传入 `{ kind: 'remote', baseUrl }`，默认构建使用 `{ kind: 'subpackage', name, root }`，其中 `name` 是目标名，`root` 是 `dist/resources/<目标名>/`。主包素材继续使用自己的 `package` 来源。 [海上避难所场景资源](../src/game/apps/ocean-shelter/three/assets.ts) · [HUD 主包资源](../src/game/apps/ocean-shelter/hud/assets.ts)
 
 `dist/` 由构建生成，`game.json` 中由目标管理的分包也由构建同步。修改资源归属时，同时核对源路径、目标声明和 App 中的读取路径。
 
-## 4. 构建并验证
+## 4. 本地网页联调
+
+在 `PixiWechatTest/` 运行以下命令。把 `nohara-house` 换成 `build:list` 列出的任意目标。
+
+~~~powershell
+npm.cmd run build:list
+npm.cmd run dev:web -- nohara-house
+~~~
+
+1. 打开终端打印的本地地址。浏览器直接进入该 App 的首屏，共用目标清单里的入口、WebGL 模式和素材声明。可以用浏览器开发者工具调节视口，查看控制台、网络请求和 TypeScript 源码。
+2. 在浏览器检查首屏、3D 场景、HUD、窗口尺寸变化和点击、拖动等交互。比如用 `nohara-house` 检查切房和拖动相机，用 `ocean-shelter` 在网络面板检查 GLB、外部贴图、HDR 和 HUD 图集。浏览器以当前视口模拟安全区，双指手势可在支持触摸的浏览器环境中联调。
+3. 保存已纳入构建的源码或已有素材后，esbuild 重建并刷新页面，App 从首屏重新开始。新增、删除或重命名素材，或者修改 `scripts/targets.json` 后，重启命令以重新读取目标配置和素材列表。可在不同终端同时启动多个目标，各终端打印各自的端口。按 `Ctrl+C` 停止当前预览。
+
+网页开发服务器只监听本机，构建结果保存在各进程内存中。逻辑输出目录为 `.build/web/<目标名>/`，网页中的 `/dist/resources/` 对应所选目标的素材 URL。工程的 `dist/`、`game.json` 和微信项目配置归微信流程管理。网页联调期间，微信开发者工具可以继续使用当前的微信构建。
+
+网页和微信共用 App 入口、Three.js 场景、Pixi HUD 和业务逻辑。新增平台能力时，在框架中维护相应的平台适配，并按各端实际支持的行为验收。
+
+本地资源通过 HTTP 读取，分包资源在浏览器中直接从所选目标的运行资源目录读取。`model-viewer`、`showcase-model` 和 `webgl2-model` 优先使用同级 `WechatAssetServer/model.glb`。文件缺失时，使用原模型 URL，该服务需允许浏览器跨源读取。微信原生手势、分包挂载、`--runtime-url` 下载链路、平台生命周期和真机表现按下一节验收。
+
+## 5. 构建并在微信中验收
 
 同一工作区的各个目标会更新同一份 `dist/game.bundle.js`、`dist/resources/` 和 `game.json` 中受构建管理的分包声明。多 Agent 共用工作区时，由一个 Agent 负责 `build:target` 和对应的微信工具联调，其余 Agent 可以并行运行类型检查、自动测试和代码审查。需要同时联调不同目标时，分别在独立 Git 工作树构建，在微信开发者工具中导入各自的工程根目录。
 
@@ -61,7 +88,7 @@ npm.cmd run build:target -- ocean-shelter
 
 本地编译用于开发验收。生成微信预览码会向微信发送当前游戏包。执行预览、上传、发布或部署远程素材前应获得用户明确授权。
 
-## 5. 归档与交付
+## 6. 归档与交付
 
 交付前把业务变更、框架接口、资源、构建、开发流程改动和故障修复记入 [开发归档](development/README.md#如何补充记录)。对应主题已有记录时补充证据和结果，新增主题时同步更新索引。
 
@@ -70,4 +97,4 @@ npm.cmd run build:target -- ocean-shelter
 - 交付的 App、入口、构建命令和首屏。
 - 主要业务改动，以及涉及的共享接口和受影响目标。
 - 主包素材和运行时素材的来源，远程模式还应记录资源版本或 URL 类型。
-- 已运行的验证和实际结果，以及待验证项和当前留在工作区的构建目标及资源模式。
+- 已运行的网页联调、自动验证和微信验收及各自结果，以及待验证项和当前留在工作区的微信构建目标及资源模式。

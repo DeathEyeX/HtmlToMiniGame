@@ -1,7 +1,7 @@
 import { startGame, type CreateLocalScene } from '../../../framework/runtime/startGame';
 import { createCubeScene } from '../../common/three/Cube';
 import type { ModelScene, ModelSceneFactory, ModelStatus } from '../../common/model-viewer/types';
-import type { createAppHud, ModelHudRenderer } from './AppHud';
+import type { createAppHud, ModelHudRenderer } from './hud/AppHud';
 
 interface ModelOptions {
   loadScene: () => Promise<ModelSceneFactory>;
@@ -25,7 +25,7 @@ export async function startGameApp(modelOptions?: ModelOptions) {
     showHudErrorModal: true
   }, async () => {
     await import('../../common/ui/packagedUIAtlas');
-    const { createAppHud } = await import('./AppHud');
+    const { createAppHud } = await import('./hud/AppHud');
     const drawModel = await modelOptions?.loadHud();
     return (stage, width, height) => {
       const hud = createAppHud(stage, width, height, {
@@ -59,6 +59,7 @@ export async function startGameApp(modelOptions?: ModelOptions) {
       confirmText: '重试',
       cancelText: '返回',
       success(result) {
+        // The dialog can outlive the scene or the failed attempt it was opened for.
         if (model !== failedScene || model.status() !== status) return;
         if (result.confirm) model.retry();
         if (result.cancel) returnHome();

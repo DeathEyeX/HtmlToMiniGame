@@ -1,5 +1,5 @@
 import type { Graphics } from 'pixi.js';
-import type { ModelStatus } from '../../common/model-viewer/types';
+import type { ModelStatus } from '../../../common/model-viewer/types';
 import { toolbar } from './toolbarLayout';
 
 export function drawModelHud(buttons: Graphics, load: ModelStatus) {

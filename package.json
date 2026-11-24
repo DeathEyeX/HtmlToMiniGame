@@ -4,6 +4,7 @@
   "description": "TypeScript、Three.js 与 PixiJS 微信小游戏框架",
   "main": "game.js",
   "scripts": {
+    "dev:web": "node scripts/dev-web.cjs",
     "typecheck": "tsc --noEmit",
     "build:target": "node scripts/build.cjs",
     "build:list": "node scripts/build.cjs --list",

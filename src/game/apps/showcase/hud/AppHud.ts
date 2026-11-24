@@ -1,7 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
-import type { HudGesture } from '../../../framework/platform/WechatPlatform';
-import type { HudView } from '../../../framework/ui/PixiHud';
-import type { ModelStatus } from '../../common/model-viewer/types';
+import type { HudGesture } from '../../../../framework/platform/WechatPlatform';
+import type { HudView } from '../../../../framework/ui/PixiHud';
+import type { ModelStatus } from '../../../common/model-viewer/types';
 import { drawHomeHud } from './HomeHud';
 import { toolbar } from './toolbarLayout';
 

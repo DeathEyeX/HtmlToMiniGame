@@ -1,7 +1,7 @@
 import * as THREE from 'three-platformize';
 import { RGBELoader } from 'three-platformize/examples/jsm/loaders/RGBELoader';
 import { createTextureCanvas, loadOceanTexture, readOceanFile, readOceanModel } from './assets';
-import { crewOnWatch, roomSpecs } from './content';
+import { crewOnWatch, roomSpecs } from '../content';
 import { disposeOceanResources } from './disposeOceanResources';
 import { createOceanCamera, type OceanView } from './OceanCamera';
 
@@ -2744,6 +2744,7 @@ export function createOceanShelterScene(
   async function mountGalleyAssets(){
     const results = await Promise.allSettled(["range","pot","jug","spoon"].map(key => readOceanModel("models/galley/" + key + ".glb")));
     const failure = results.find(result => result.status === 'rejected');
+    // Unmounted models are outside the scene tree and need to be disposed here.
     if (disposed || failure) {
       for (const result of results) {
         if (result.status === 'fulfilled') disposeOceanResources(result.value.scene);

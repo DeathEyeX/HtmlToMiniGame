@@ -1,9 +1,9 @@
 import { Container, Graphics } from 'pixi.js';
-import type { HudGesture } from '../../../framework/platform/WechatPlatform';
-import { crewOnWatch, roomSpecs } from './content';
+import type { HudGesture } from '../../../../framework/platform/WechatPlatform';
+import { crewOnWatch, roomSpecs } from '../content';
 import { oceanHudCopy as copy } from './hudCopy';
 import type { createOceanHudArt } from './OceanHudArt';
-import type { createOceanShelterScene } from './OceanShelter';
+import type { createOceanShelterScene } from '../three/OceanShelter';
 
 type Point = Parameters<HudGesture['move']>[0];
 type Art = ReturnType<typeof createOceanHudArt>;

@@ -9,7 +9,10 @@
 ## 项目约束
 
 - 新业务默认创建独立 App，在 `src/game/apps/<app-id>/main.ts` 提供入口，并在 `scripts/targets.json` 登记同名目标。按任务范围决定是否接入 `showcase`。
+- App 专属 Pixi HUD 和 Three.js 场景分别放在 `hud/` 和 `three/`，按实际模块建目录。
+- Agent 新增或修改代码时，为源码里看不出的业务规则、平台限制和资源生命周期补必要注释。沿用项目措辞，说明具体原因，删掉复述代码的注释和模板套话。
 - 应用之间禁止跨目录导入。实际共用的业务进入 `src/game/common/`，微信平台、渲染、输入和资源加载能力归 `src/framework/`。框架与业务的依赖方向见工作流。
 - 通过 `startGame` 装配场景与 HUD，复用框架管理的 Canvas、WebGL 上下文、帧循环和输入分流。
 - App 专属素材放在 `media/<app-id>/`，按 `packaged/` 和 `runtime/` 声明来源。通过构建生成 `dist/` 和当前目标的分包配置。
+- App 首屏、场景和 HUD 交互按工作流使用 `npm.cmd run dev:web -- <app-id>` 在浏览器联调。微信验收仍使用 `build:target` 和微信开发者工具。
 - 代码或素材改动完成后，核对目标构建、全仓类型检查及自动回归。交付时记录当前构建目标，以及模拟器、预览和真机各自的验证结果。

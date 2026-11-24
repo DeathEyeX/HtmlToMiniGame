@@ -1,5 +1,5 @@
 import { MathUtils, PerspectiveCamera, Raycaster, Vector2, Vector3, type Object3D } from 'three-platformize';
-import type { RoutedTouchEvent } from '../../../framework/platform/WechatPlatform';
+import type { RoutedTouchEvent } from '../../../../framework/platform/WechatPlatform';
 
 export type OceanView =
   | { kind: 'overview' | 'roof' }

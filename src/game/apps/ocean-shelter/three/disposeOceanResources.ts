@@ -3,6 +3,7 @@ import { Material, Texture, type BufferGeometry, type Object3D, type WebGLRender
 export function disposeOceanResources(
   root: Object3D, extraTextures: Iterable<Texture> = [], extraTargets: Iterable<WebGLRenderTarget> = []
 ) {
+  // Cloned props can share geometry, materials and textures.
   const geometries = new Set<BufferGeometry>();
   const materials = new Set<Material>();
   const textures = new Set(extraTextures);

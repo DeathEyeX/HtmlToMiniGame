@@ -51,10 +51,10 @@ function runtimeUrlFor(name, value) {
   return url.href;
 }
 
-function compileTarget(name, runtimeUrl) {
+function targetBuildOptions(name, runtimeUrl) {
   const { entry, renderer } = targetConfig(name);
   const url = runtimeUrlFor(name, runtimeUrl);
-  return buildSync({
+  return {
     absWorkingDir: root,
     entryPoints: [entry],
     bundle: true,
@@ -69,10 +69,13 @@ function compileTarget(name, runtimeUrl) {
       GAME_RUNTIME_ASSET_URL: url ? JSON.stringify(url) : 'undefined',
       ...(renderer === 'webgl2' && { WebGL2RenderingContext: 'globalThis.WebGL2RenderingContext' })
     },
-    outfile: 'dist/game.bundle.js',
     metafile: true,
     write: false
-  });
+  };
+}
+
+function compileTarget(name, runtimeUrl) {
+  return buildSync({ ...targetBuildOptions(name, runtimeUrl), outfile: 'dist/game.bundle.js' });
 }
 
 function assetPath(file) {
@@ -91,19 +94,23 @@ function readAssetDirectory(directory, prefix) {
     throw new Error(`素材目录 ${directory} 仅支持常规文件和目录。`);
   }
   const files = entries.filter(entry => entry.isFile()).map(entry => path.join(entry.parentPath, entry.name)).sort();
-  return files.map(file => {
-    const relative = path.relative(source, file).split(path.sep).join('/');
-    return { file: `${prefix}/${relative}`, bytes: fs.readFileSync(file) };
+  return files.map(sourceFile => {
+    const relative = path.relative(source, sourceFile).split(path.sep).join('/');
+    return { file: `${prefix}/${relative}`, source: sourceFile };
   });
 }
 
-function readAssets(name, runtimeUrl) {
+function listTargetAssets(name, runtimeUrl) {
   const { assets = [], packagedResources, runtimeResources } = targetConfig(name);
   return [
-    ...assets.map(file => ({ file, bytes: fs.readFileSync(assetPath(file)) })),
+    ...assets.map(file => ({ file, source: assetPath(file) })),
     ...(packagedResources ? readAssetDirectory(packagedResources, `packaged/${name}`) : []),
     ...(runtimeResources && !runtimeUrl ? readAssetDirectory(runtimeResources, name) : [])
   ];
+}
+
+function readAssets(name, runtimeUrl) {
+  return listTargetAssets(name, runtimeUrl).map(({ file, source }) => ({ file, bytes: fs.readFileSync(source) }));
 }
 
 function packageConfig(original, selected) {
@@ -240,4 +247,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { compileTarget, readAssets, platformDefines };
+module.exports = { compileTarget, readAssets, platformDefines, targetBuildOptions, listTargetAssets };

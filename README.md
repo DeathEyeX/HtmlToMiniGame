@@ -1,16 +1,27 @@
 # PixiWechatTest
 
-基于 TypeScript、Three 和 PixiJS 的微信小游戏工程。每个应用有独立的 TypeScript 入口，构建后通过微信开发者工具导入工程根目录。
+基于 TypeScript、Three 和 PixiJS 的微信小游戏工程。每个应用有独立的 TypeScript 入口，支持在本地浏览器联调，并通过微信开发者工具做平台验收。
 
 启动 Agent 开发任务时，把工作目录设为本工程根目录 `PixiWechatTest/`。开发从阅读 [AGENTS.md](AGENTS.md) 和 [AI 业务开发工作流](docs/AGENT_WORKFLOW.md) 开始。
 应用改动、框架扩展和故障修复可按主题查询 [开发归档](docs/development/README.md)。
 
 ## 开始使用
 
-使用 Node.js 22 LTS。在工程根目录运行以下命令。
+使用 Node.js 22 LTS。在工程根目录安装依赖并启动一个 App 的网页预览。
 
 ```powershell
 npm.cmd ci
+npm.cmd run build:list
+npm.cmd run dev:web -- nohara-house
+```
+
+在 Chrome 或 Edge 打开终端打印的 `http://127.0.0.1:<端口>/`。浏览器直接进入 App 首屏，保存已纳入构建的源码或素材后自动刷新。另开终端可以同时运行其他 App。网页预览在内存中构建，微信的 `dist/` 和 `game.json` 独立管理。 [网页联调流程](docs/AGENT_WORKFLOW.md#4-本地网页联调)
+
+### 微信构建与验收
+
+需要在微信开发者工具验收时，在工程根目录构建对应目标。
+
+```powershell
 npm.cmd run build:target -- showcase
 ```
 
@@ -23,12 +34,13 @@ npm.cmd run build:target -- showcase
 | 直接进入颜色匹配 | `npm.cmd run build:target -- color-match` |
 | Pixi 图集、位图数字及点按 | `npm.cmd run build:target -- pixi-ui` |
 | 直接进入海上避难所 | `npm.cmd run build:target -- ocean-shelter` |
+| 直接进入野原家的小屋 | `npm.cmd run build:target -- nohara-house` |
 | 首页、配装台与颜色匹配 | `npm.cmd run build:target -- showcase` |
 | 独立模型或首页加模型 | `npm.cmd run build:target -- model-viewer`、`npm.cmd run build:target -- showcase-model` |
 | WebGL2 基础、模型 | `npm.cmd run build:target -- webgl2`、`npm.cmd run build:target -- webgl2-model` |
 | 查看或指定目标 | `npm.cmd run build:list`、`npm.cmd run build:target -- <目标名>` |
 
-模型目标需要启动同级 `WechatAssetServer` 并核对 `src/game/common/model-viewer/modelAsset.ts` 的 URL。[模型运行步骤](docs/ARCHITECTURE_AND_USAGE.md#32-启动模型联调)
+微信模型目标需要启动同级 `WechatAssetServer` 并核对 `src/game/common/model-viewer/modelAsset.ts` 的 URL。 [模型运行步骤](docs/ARCHITECTURE_AND_USAGE.md#32-启动模型联调)
 
 ## 框架与新增应用
 

@@ -9,7 +9,7 @@ const { outputFiles: [bundle] } = buildSync({
     contents: `
       export { loadHud } from "./src/framework/ui/loadHud";
       export async function loadPixiUIDiagnostics() {
-        return (await import("./src/game/apps/pixi-ui/pixiUI")).createPixiUIDiagnostics;
+        return (await import("./src/game/apps/pixi-ui/hud/pixiUI")).createPixiUIDiagnostics;
       }
       export async function schedule() {
         const { SchedulerSystem } = await import("pixi.js");

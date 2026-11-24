@@ -1,8 +1,8 @@
 import { startGame } from '../../../framework/runtime/startGame';
 import { reportStartupError } from '../../common/ui/reportStartupError';
-import { loadOceanHudImages } from './assets';
-import { createOceanShelterScene } from './OceanShelter';
-import type { createOceanShelterHud } from './OceanShelterHud';
+import { loadOceanHudImages } from './hud/assets';
+import type { createOceanShelterHud } from './hud/OceanShelterHud';
+import { createOceanShelterScene } from './three/OceanShelter';
 
 async function startOceanShelter() {
   let ocean: ReturnType<typeof createOceanShelterScene>;
@@ -22,8 +22,8 @@ async function startOceanShelter() {
       showHudErrorModal: true
     }, async () => {
       const [{ createOceanShelterHud }, { createOceanHudArt }] = await Promise.all([
-        import('./OceanShelterHud'),
-        import('./OceanHudArt')
+        import('./hud/OceanShelterHud'),
+        import('./hud/OceanHudArt')
       ]);
       return (stage, width, height) => {
         const art = createOceanHudArt(images);

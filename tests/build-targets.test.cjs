@@ -41,8 +41,8 @@ test('each target bundles one application and only its selected modules and pack
     const packaged = readAssets(name).map(({ file }) => file);
     assert.deepEqual(packaged.slice(0, assets.length), assets, name);
     const ocean = name === 'ocean-shelter';
-    assert.equal(Object.hasOwn(inputs, 'src/game/apps/ocean-shelter/OceanShelter.ts'), ocean, name);
-    assert.equal(Object.hasOwn(inputs, 'src/game/apps/ocean-shelter/OceanShelterHud.ts'), ocean, name);
+    assert.equal(Object.hasOwn(inputs, 'src/game/apps/ocean-shelter/three/OceanShelter.ts'), ocean, name);
+    assert.equal(Object.hasOwn(inputs, 'src/game/apps/ocean-shelter/hud/OceanShelterHud.ts'), ocean, name);
     assert.equal(packaged.includes('ocean-shelter/models/galley/range.glb'), ocean, name);
     assert.equal(packaged.includes('ocean-shelter/models/galley/range-0.png'), ocean, name);
     assert.equal(packaged.includes('packaged/ocean-shelter/ui/ui-glyphs.png'), ocean, name);
@@ -53,7 +53,7 @@ test('each target bundles one application and only its selected modules and pack
     assert.deepEqual(packaged, assets, name);
     const has = (file) => Object.hasOwn(inputs, file);
     assert.equal(has('src/framework/assets/model/draco/draco_decoder.js'), modelTargets.has(name), name);
-    assert.equal(has('src/game/apps/showcase/ModelHud.ts'), name === 'showcase-model', name);
+    assert.equal(has('src/game/apps/showcase/hud/ModelHud.ts'), name === 'showcase-model', name);
     assert.equal(has('src/game/common/ui/packagedUIAtlas.ts'), atlasTargets.has(name), name);
     assert.equal(has('src/game/common/workbench/Workbench.ts'), name === 'workbench' || name.startsWith('showcase'), name);
     assert.equal(has('src/game/common/color-match/ColorMatch.ts'), name === 'color-match' || name.startsWith('showcase'), name);

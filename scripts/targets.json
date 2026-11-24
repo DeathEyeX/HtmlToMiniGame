@@ -12,5 +12,9 @@
     "entry": "src/game/apps/ocean-shelter/main.ts",
     "packagedResources": "ocean-shelter/packaged",
     "runtimeResources": "ocean-shelter/runtime"
+  },
+  "nohara-house": {
+    "entry": "src/game/apps/nohara-house/main.ts",
+    "packagedResources": "nohara-house/packaged"
   }
 }

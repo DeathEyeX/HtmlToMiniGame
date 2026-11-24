@@ -66,7 +66,7 @@ wx.downloadFile / 版本缓存 → ArrayBuffer → GLTFLoader.parse
 | `src/framework/runtime/startGame.ts` | 持有 Canvas、平台、渲染器、HUD、RAF、尺寸与前后台处理。绘制顺序为 Three 后叠加 Pixi。 |
 | `src/framework/rendering/createWebGL2Renderer.ts` | 启用 WebGL2 时在上屏 Canvas 请求上下文，编译 GLSL ES 3.00 并绘制和读回像素，再让 Three 接管。 |
 | `src/game/common/three/Cube.ts` | 构建程序化立方体，以及独立的相机、灯光和旋转更新。 |
-| `src/game/apps/showcase/startGameApp.ts`、`AppHud.ts` | 应用导航和 HUD 装配。按需载入场景和 UI，调用运行时 `switchScene` 进入和返回。 |
+| `src/game/apps/showcase/startGameApp.ts`、`src/game/apps/showcase/hud/AppHud.ts` | 应用导航和 HUD 装配。按需载入场景和 UI，调用运行时 `switchScene` 进入和返回。 |
 | `src/game/common/workbench/`、`src/game/common/color-match/` | 各自持有 3D、UI 与业务数据。颜色匹配以纯逻辑模块 `round.ts` 管理计分和回合。 |
 | `src/game/common/model-viewer/LittlestTokyo.ts` | 持有模型相机、灯光、动画和当前加载尝试。对应用提供状态、重试与退出释放，通过 `update(delta)` 接入共享帧循环。 |
 | `src/framework/platform/WechatPlatform.ts` | 继承已验证的 `WechatGamePlatform`。沿用其微信原生触摸订阅，在手势开始时询问 HUD 是否接管。场景手势交给自定义 `touch(event)`，或由平台桥接给 OrbitControls。 |
