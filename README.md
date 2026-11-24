@@ -2,6 +2,9 @@
 
 基于 TypeScript、Three 和 PixiJS 的微信小游戏工程。每个应用有独立的 TypeScript 入口，构建后通过微信开发者工具导入工程根目录。
 
+AI 进行业务开发时，先读 [AGENTS.md](AGENTS.md) 和 [AI 业务开发工作流](docs/AGENT_WORKFLOW.md)。
+应用改动、框架扩展和故障修复可按主题查询 [开发归档](docs/development/README.md)。
+
 ## 开始使用
 
 使用 Node.js 22 LTS。在工程根目录运行以下命令。

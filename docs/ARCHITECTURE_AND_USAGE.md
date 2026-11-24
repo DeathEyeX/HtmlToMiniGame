@@ -67,7 +67,7 @@ wx.downloadFile / 版本缓存 → ArrayBuffer → GLTFLoader.parse
 | `src/game/apps/showcase/startGameApp.ts`、`AppHud.ts` | 应用导航和 HUD 装配。按需载入场景和 UI，调用运行时 `switchScene` 进入和返回。 |
 | `src/game/common/workbench/`、`src/game/common/color-match/` | 各自持有 3D、UI 与业务数据。颜色匹配以纯逻辑模块 `round.ts` 管理计分和回合。 |
 | `src/game/common/model-viewer/LittlestTokyo.ts` | 持有模型相机、灯光、动画和当前加载尝试。对应用提供状态、重试与退出释放，通过 `update(delta)` 接入共享帧循环。 |
-| `src/framework/platform/WechatPlatform.ts` | 继承已验证的 `WechatGamePlatform`。沿用其微信原生触摸订阅，仅在手势开始时询问 HUD 是否接管按钮、开关、滑块或拖动把手。起点在场景的手势走原 OrbitControls。 |
+| `src/framework/platform/WechatPlatform.ts` | 继承已验证的 `WechatGamePlatform`。沿用其微信原生触摸订阅，在手势开始时询问 HUD 是否接管。场景手势交给自定义 `touch(event)`，或由平台桥接给 OrbitControls。 |
 | `src/framework/ui/loadHud.ts` | 在延迟加载 Pixi 之前补齐缺失的 `navigator` 和 `performance.now()`。构建把 Pixi 的裸 `performance`、`Intl` 引用映射到对应的 `globalThis` 属性。 |
 | `src/framework/ui/PixiHud.ts` | 配置微信 Canvas 适配，使用 Pixi 的静态代码兼容模块。由调用方提供 HUD 视图，经 `beginGesture` 返回 `move / release / cancel`。 |
 | `src/game/common/ui/controlsHud.ts` | 计数、开关、滑块、遮罩和整板拖动，由基础操作、模型与 WebGL2 目标复用。 |
@@ -198,7 +198,9 @@ npm.cmd run build:target -- model-viewer
 
 ## 5. 新增应用和素材
 
-1. 在 `src/game/apps/<项目名>/` 新建 `main.ts`，组织自己的场景与 HUD。单场景可参考 `apps/color-match/main.ts`，带多页面的应用可参考 `apps/showcase/`。场景工厂返回相机、OrbitControls、`update(delta)` 和资源释放函数。
+AI 开发前先阅读 [AI 业务开发工作流](AGENT_WORKFLOW.md)。
+
+1. 在 `src/game/apps/<项目名>/` 新建 `main.ts`，组织自己的场景与 HUD。单场景可参考 `apps/color-match/main.ts`，带多页面的应用可参考 `apps/showcase/`。场景工厂返回相机和 `update(delta)`，按需提供 OrbitControls、自定义触摸回调和资源释放函数。
 2. 在 `scripts/targets.json` 登记目标。单文件素材使用 `assets`。App 的主包素材目录使用 `packagedResources`，运行时素材目录使用 `runtimeResources`，两者都相对于 `media/`。
 
    ```json
