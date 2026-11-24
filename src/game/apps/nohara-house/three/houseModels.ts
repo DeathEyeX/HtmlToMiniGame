@@ -2,6 +2,7 @@ import {
   BackSide, BoxGeometry, CylinderGeometry, ExtrudeGeometry, Group, Mesh, MeshBasicMaterial,
   MeshToonMaterial, Shape, SphereGeometry, type BufferGeometry
 } from 'three-platformize';
+import { createShinnosuke } from './shinnosuke';
 import type { RoomId } from '../rooms';
 
 const cream = 0xf7e7be;
@@ -323,49 +324,13 @@ const shinPosition: Record<RoomId, [number, number, number]> = {
   bath: [.67, .04, 2.37]
 };
 
-function createShinnosuke(room: RoomId) {
-  const model = createModel();
-  const { round } = model;
-  const hair = 0x261f22;
-  const skin = 0xffb887;
-  const shirt = 0xe93f42;
-  const shorts = 0xf6cd4a;
-
-  round(shorts, .51, .31, .37, 0, .38, 0);
-  round(shirt, .54, .48, .395, 0, .64, -.023);
-  for (const side of [-1, 1]) {
-    round(skin, .15, .25, .16, side * .14, .23, .01);
-    round(white, .156, .111, .17, side * .14, .135, .012);
-    round(0xf4b13e, .211, .114, .316, side * .143, .058, .085);
-    round(shirt, .184, .24, .19, side * .263, .697, 0, side * .42);
-    round(skin, .145, .216, .15, side * .333, .554, .036, side * .42);
-    round(skin, .143, .139, .152, side * .366, .481, .05);
-    round(skin, .127, .167, .135, side * .424, 1.066, .05);
-  }
-
-  round(hair, .926, .727, .74, -.048, 1.181, -.057, .07);
-  round(skin, .936, .642, .749, .015, 1.119, .068, -.08);
-  round(skin, .398, .353, .311, .23, 1.008, .259, -.29, 0);
-  round(hair, .232, .09, .079, -.18, 1.31, .352, .24, 0);
-  round(hair, .225, .092, .08, .165, 1.318, .367, -.15, 0);
-  for (const side of [-1, 1]) {
-    round(hair, .136, .148, .069, side * .16, 1.193, .407, side * .12, 0);
-    round(white, .05, .054, .021, side * .16 - .014, 1.222, .443, 0, 0);
-  }
-  round(skin, .11, .084, .114, .026, 1.119, .429, -.12, 0);
-  round(0xa55349, .123, .067, .062, .077, .988, .41, -.23, 0);
-
-  model.group.name = 'Shinnosuke';
-  model.group.position.set(...shinPosition[room]);
-  model.group.rotation.y = .42;
-  model.group.scale.setScalar(room === 'exterior' ? 1.14 : 1.05);
-  return model;
-}
-
 export function createHouseModel(room: RoomId) {
   const model = createModel();
   buildRoom[room](model);
-  // const shin = createShinnosuke(room);
+  // const shin = createShinnosuke();
+  // shin.group.position.set(...shinPosition[room]);
+  // shin.group.rotation.y = .29;
+  // shin.group.scale.setScalar(room === 'exterior' ? .98 : .93);
   // model.group.add(shin.group);
   return {
     group: model.group,

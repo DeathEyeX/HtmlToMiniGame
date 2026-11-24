@@ -13,3 +13,11 @@
 **改动**　从场景区单指拖动可改变相机的水平角度和俯仰。外观支持水平环绕，室内限制在剖面的开放侧。按住底部房间按钮的手势由 HUD 接管，有效松手才切换。六个场景各放置一份由 Three.js 基本几何搭建的小新模型，沿用场景的卡通材质和轮廓。房间退出时释放角色与场景的几何、材质。 [相机与触摸](../../src/game/apps/nohara-house/three/houseScene.ts) · [房间与角色建模](../../src/game/apps/nohara-house/three/houseModels.ts) · [电视朝日角色参考](https://www.tv-asahi.co.jp/shinchan/character/)
 
 **验证**　`npm.cmd run build:target -- nohara-house`、全仓类型检查与 28 项自动测试通过。回归覆盖绕转、室内限位、触摸取消、房间切换和角色资源释放。本地 WebGL 将触摸事件送入实际构建产物，验证外观在拖动前后从不同角度绘制。已在微信开发者工具 Stable 1.06.2402030 的 iPhone 5 模拟器看到新版外观、浴室和厨房画面及小新模型。当前工作区产物为 `nohara-house`，微信预览和真机待验。 [自动回归](../../tests/nohara-house.test.cjs)
+
+## 小新模型重建与自审
+
+2026-11-24。六个场景恢复挂载新版角色。头部和不对称脸颊共用一张连续曲面，发际线沿头皮绘制。眉眼与嘴形先按正面轮廓定位，再投到脸部曲面。红上衣、黄短裤、袜口和鞋底各有独立轮廓，抬手采用弯曲的手臂和分开的两指。角色由 TypeScript 生成，几何与材质随房间退出释放。 [角色模型](../../src/game/apps/nohara-house/three/shinnosuke.ts) · [房间挂载](../../src/game/apps/nohara-house/three/houseModels.ts)
+
+**画面自审**　对照正面偏转、侧面偏转和背面渲染，先后修正了暖光下肤色偏黄、抬手被脸颊遮住、正面眼睛随脸颊拉斜的问题。随后从浏览器 App 入口在 390 × 820 视口点击全部房间按钮，逐张检查角色位置、衣色、眉眼和与家具的遮挡关系。院落中人物约 43 像素高，客厅约 60 像素高，嘴形和指尖以近景审图为准。 [角色三角度渲染](images/nohara-shinnosuke.png) · [六个场景实拍](images/nohara-shinnosuke-rooms.png)
+
+**工程验证**　`nohara-house` 独立 WebGL1 构建、`npm.cmd run typecheck` 和全部 29 项测试通过。单个角色包含三个网格，检查了顶点数据、三角形索引以及三个几何体和三份材质的释放。微信开发者工具 Stable 1.06.2402030 的 iPhone 5 模拟器重新编译后能显示院落、切换客厅并绘制角色。开发者工具控制台同时报告缺失的旧 `.app-layout-check-*/dist/game.bundle.js` 和模块语法错误。本轮微信扫码预览与真机运行待验。
