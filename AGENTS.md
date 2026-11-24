@@ -8,7 +8,7 @@
 
 ## 项目约束
 
-- 新业务默认创建独立 App，在 `src/game/apps/<app-id>/main.ts` 提供入口，并在 `scripts/targets.json` 登记同名目标。按任务范围决定是否接入 `showcase`。
+- 「新 App」「新 app」「新业务模块」都表示创建独立构建目标。用户只需描述业务需求。未指定 App ID 时按业务命名，在 `src/game/apps/<app-id>/main.ts` 提供入口，在 `scripts/targets.json` 登记同名目标，并在交付时注明。按任务范围决定是否接入 `showcase`。
 - App 专属 Pixi HUD 和 Three.js 场景分别放在 `hud/` 和 `three/`，按实际模块建目录。
 - Agent 新增或修改代码时，为源码里看不出的业务规则、平台限制和资源生命周期补必要注释。沿用项目措辞，说明具体原因，删掉复述代码的注释和模板套话。
 - 应用之间禁止跨目录导入。实际共用的业务进入 `src/game/common/`，微信平台、渲染、输入和资源加载能力归 `src/framework/`。框架与业务的依赖方向见工作流。

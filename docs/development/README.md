@@ -6,6 +6,7 @@
 | --- | --- |
 | `ocean-shelter`、独立入口、船体剖面、舱室、HUD | [海上避难所](ocean-shelter.md) |
 | `drift-era`、像素风海上庇护所、多层通行、联络任务 | [漂流纪元](drift-era.md) |
+| `tidal-harbor`、滑动环绕、卡通像素材质、水线遗迹、海底城区 | [潮汐浮城](tidal-harbor.md) |
 | `nohara-house`、野原家、卡通房屋、房间切换、拖动旋转、小新模型、中文图集 | [野原家的小屋](nohara-house.md) |
 | `startGame`、`touchcancel`、OrbitControls、阴影和渲染钩子 | [共享场景运行时](framework.md#共享场景运行时) |
 | `packagedResources`、`runtimeResources`、`--runtime-url`、GLB 外部贴图 | [主包与运行时资源](framework.md#主包与运行时资源) |

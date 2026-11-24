@@ -20,5 +20,9 @@
   "drift-era": {
     "entry": "src/game/apps/drift-era/main.ts",
     "packagedResources": "drift-era/packaged"
+  },
+  "tidal-harbor": {
+    "entry": "src/game/apps/tidal-harbor/main.ts",
+    "packagedResources": "tidal-harbor/packaged"
   }
 }
