@@ -19,6 +19,8 @@ const { outputFiles: [bundle] } = buildSync({
 });
 const png = fs.readFileSync('media/nohara-house/packaged/ui/labels.png');
 const page = { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+const spritePng = fs.readFileSync('media/nohara-house/packaged/characters/shinnosuke.png');
+const character = { width: spritePng.readUInt32BE(16), height: spritePng.readUInt32BE(20) };
 
 const width = 390;
 const height = 820;
@@ -41,22 +43,27 @@ test('house HUD switches to each room on release and keeps the active room on ca
   function open(room) {
     current?.dispose();
     const scene = new Scene();
-    current = createHouseScene(scene, room);
+    current = createHouseScene(scene, room, character);
     current.resize(width, height);
     current.update(.05);
     const model = scene.children.find(child => child.isGroup);
     assert.ok(model?.children.length > 0);
     const shin = model.getObjectByName('Shinnosuke');
-    assert.ok(shin?.children.some(child => child.isMesh));
+    assert.ok(shin?.isSprite);
+    assert.equal(shin.material.map.image, character);
+    assert.equal(shin.scale.x / shin.scale.y, character.width / character.height);
+    assert.equal(shin.material.depthTest, true);
     assert.ok(current.camera.projectionMatrix.elements.every(Number.isFinite));
     const dispose = current.dispose;
     current.dispose = () => {
       let released = false;
-      let characterReleased = false;
+      let materialReleased = false;
+      let textureReleased = false;
       model.children[0].geometry.addEventListener('dispose', () => { released = true; });
-      shin.children[0].geometry.addEventListener('dispose', () => { characterReleased = true; });
+      shin.material.addEventListener('dispose', () => { materialReleased = true; });
+      shin.material.map.addEventListener('dispose', () => { textureReleased = true; });
       dispose();
-      assert.ok(released && characterReleased);
+      assert.ok(released && materialReleased && textureReleased);
       assert.equal(model.parent, null);
     };
     visited.push(room);
@@ -89,8 +96,8 @@ test('house HUD switches to each room on release and keeps the active room on ca
 
 test('house orbit tracks a single drag, stops on cancellation and clamps the interior view', () => {
   const { createHouseScene } = loadHouse();
-  const exterior = createHouseScene(new Scene(), 'exterior');
-  const living = createHouseScene(new Scene(), 'living');
+  const exterior = createHouseScene(new Scene(), 'exterior', character);
+  const living = createHouseScene(new Scene(), 'living', character);
   for (const scene of [exterior, living]) scene.resize(width, height);
 
   function touch(scene, type, x, y, identifier = 1) {

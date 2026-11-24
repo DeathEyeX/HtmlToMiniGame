@@ -324,18 +324,16 @@ const shinPosition: Record<RoomId, [number, number, number]> = {
   bath: [.67, .04, 2.37]
 };
 
-export function createHouseModel(room: RoomId) {
+export function createHouseModel(room: RoomId, character: WechatMinigame.Image) {
   const model = createModel();
   buildRoom[room](model);
-  // const shin = createShinnosuke();
-  // shin.group.position.set(...shinPosition[room]);
-  // shin.group.rotation.y = .29;
-  // shin.group.scale.setScalar(room === 'exterior' ? .98 : .93);
-  // model.group.add(shin.group);
+  const shin = createShinnosuke(character, room === 'exterior' ? 1.96 : 1.86);
+  shin.sprite.position.set(...shinPosition[room]);
+  model.group.add(shin.sprite);
   return {
     group: model.group,
     dispose() {
-      // shin.dispose();
+      shin.dispose();
       model.dispose();
     }
   };

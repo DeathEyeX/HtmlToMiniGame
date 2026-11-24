@@ -24,5 +24,9 @@
   "tidal-harbor": {
     "entry": "src/game/apps/tidal-harbor/main.ts",
     "packagedResources": "tidal-harbor/packaged"
+  },
+  "saltwind-haven": {
+    "entry": "src/game/apps/saltwind-haven/main.ts",
+    "packagedResources": "saltwind-haven/packaged"
   }
 }

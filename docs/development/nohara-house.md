@@ -21,3 +21,9 @@
 **画面自审**　对照正面偏转、侧面偏转和背面渲染，先后修正了暖光下肤色偏黄、抬手被脸颊遮住、正面眼睛随脸颊拉斜的问题。随后从浏览器 App 入口在 390 × 820 视口点击全部房间按钮，逐张检查角色位置、衣色、眉眼和与家具的遮挡关系。院落中人物约 43 像素高，客厅约 60 像素高，嘴形和指尖以近景审图为准。 [角色三角度渲染](images/nohara-shinnosuke.png) · [六个场景实拍](images/nohara-shinnosuke-rooms.png)
 
 **工程验证**　`nohara-house` 独立 WebGL1 构建、`npm.cmd run typecheck` 和全部 29 项测试通过。单个角色包含三个网格，检查了顶点数据、三角形索引以及三个几何体和三份材质的释放。微信开发者工具 Stable 1.06.2402030 的 iPhone 5 模拟器重新编译后能显示院落、切换客厅并绘制角色。开发者工具控制台同时报告缺失的旧 `.app-layout-check-*/dist/game.bundle.js` 和模块语法错误。本轮微信扫码预览与真机运行待验。
+
+## 小新 2D 贴片
+
+2026-11-24。六个房间的小新使用一张透明 256 × 256 PNG。头部约占全高 55%，用一侧鼓腮、粗眉、圆眼和短腿呈现二维卡通比例。Three.js Sprite 始终面向相机，从鞋底锚定房间中的原有站位，参与深度测试。PNG 作为首帧素材放入主包的 `characters/`，启动时通过框架加载器解码一次，房间切换时复用解码图像并释放旧 Sprite 的纹理和材质。修改绘制曲线后用 Pillow 运行 `python scripts/build-nohara-shinnosuke.py` 更新 PNG。 [角色贴图](../../media/nohara-house/packaged/characters/shinnosuke.png) · [绘制脚本](../../scripts/build-nohara-shinnosuke.py) · [贴片实现](../../src/game/apps/nohara-house/three/shinnosuke.ts)
+
+**验证**　直接检查了贴图和两个相机方向的 WebGL1 绘制结果。以 390 × 820 视口在浏览器离线运行同一构建入口，核对院落首帧、拖动后与客厅切换后的眉眼、脸部轮廓和脚底位置。全仓类型检查及 34 项测试通过。为保留工作区已有的盐风庇护所产物，在 `.build/nohara-house-wechat-F1QEOK/` 单独执行了 `build:target -- nohara-house`，可将该目录导入微信开发者工具。微信模拟器、预览和真机待验。

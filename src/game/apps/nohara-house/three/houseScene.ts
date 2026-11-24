@@ -20,8 +20,8 @@ function dragPoint(touch: SceneTouch) {
   if (x !== undefined && y !== undefined) return { id: touch.identifier, x, y };
 }
 
-export function createHouseScene(scene: Scene, room: RoomId) {
-  const model = createHouseModel(room);
+export function createHouseScene(scene: Scene, room: RoomId, character: WechatMinigame.Image) {
+  const model = createHouseModel(room, character);
   const camera = new PerspectiveCamera(35, 1, .1, 160);
   const daylight = new DirectionalLight(0xfff5df, .76);
   daylight.position.set(-3, 7, 5);

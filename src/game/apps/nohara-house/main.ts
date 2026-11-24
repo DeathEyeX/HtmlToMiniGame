@@ -9,7 +9,9 @@ const resources = createResourceLoader({
 });
 
 async function startHouse() {
-  const game = await startGame(scene => createHouseScene(scene, 'exterior'), {
+  // Decode once for the first frame and reuse the image when switching rooms.
+  const character = await resources.loadImage('characters/shinnosuke.png');
+  const game = await startGame(scene => createHouseScene(scene, 'exterior', character), {
     tag: '[NoharaHouse]',
     hudReadyMessage: 'Room selector ready',
     showHudErrorModal: true
@@ -19,7 +21,7 @@ async function startHouse() {
       resources.loadImage('ui/labels.png')
     ]);
     return (stage, width, height) => createHouseHud(stage, width, height, page, room => {
-      game.switchScene(scene => createHouseScene(scene, room));
+      game.switchScene(scene => createHouseScene(scene, room, character));
     });
   });
 }
