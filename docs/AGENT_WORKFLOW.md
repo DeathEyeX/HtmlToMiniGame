@@ -34,13 +34,17 @@ App 专属素材使用与代码同名的 `media/<app-id>/`。共用文件由实�
 | --- | --- | --- |
 | `assets` | 单文件素材，如共用 HUD 图集 | 路径相对于 `media/`，原相对路径复制到 `dist/resources/`。 |
 | `packagedResources` | `media/<app-id>/packaged/` 内的启动图标、字形和 HUD | 复制到 `dist/resources/packaged/<目标名>/`，由主包直接提供。 |
-| `runtimeResources` | `media/<app-id>/runtime/` 内的场景模型、贴图和环境资源 | 默认复制到 `dist/resources/<目标名>/` 并登记为微信分包。传 `--runtime-url` 时，构建选择运行时下载，游戏包省去该分包。 |
+| `runtimeResources` | `media/<app-id>/runtime/` 内的场景模型、贴图和环境资源 | 默认复制到 `dist/resources/<目标名>/` 并登记为微信分包。传 `--runtime-url` 时，构建注入 `GAME_RUNTIME_ASSET_URL` 并省略该分包。 |
 
 新 App 通过 [共享资源加载器](../src/framework/assets/createResourceLoader.ts) 的 `loadImage(relativePath)` 和 `readBinary(relativePath)` 读取资源。框架负责分包挂载和远程下载，App 负责把资源交给 Three.js 或 PixiJS、显示加载状态，以及选择失败提示、重试或降级。远程资源服务保持运行目录结构，可以通过版本目录区分内容。 [运行时资源配置](ARCHITECTURE_AND_USAGE.md#运行时资源)
+
+支持远程模式的 App 要读取 `GAME_RUNTIME_ASSET_URL`。有地址时向加载器传入 `{ kind: 'remote', baseUrl }`，默认构建使用 `{ kind: 'subpackage', name, root }`，其中 `name` 是目标名，`root` 是 `dist/resources/<目标名>/`。主包素材继续使用自己的 `package` 来源。 [海上避难所资源入口](../src/game/apps/ocean-shelter/assets.ts)
 
 `dist/` 由构建生成，`game.json` 中由目标管理的分包也由构建同步。修改资源归属时，同时核对源路径、目标声明和 App 中的读取路径。
 
 ## 4. 构建并验证
+
+同一工作区的各个目标会更新同一份 `dist/game.bundle.js`、`dist/resources/` 和 `game.json` 中受构建管理的分包声明。多 Agent 共用工作区时，由一个 Agent 负责 `build:target` 和对应的微信工具联调，其余 Agent 可以并行运行类型检查、自动测试和代码审查。需要同时联调不同目标时，分别在独立 Git 工作树构建，在微信开发者工具中导入各自的工程根目录。
 
 代码或素材改动后，运行以下检查。把示例中的 `ocean-shelter` 换成本次目标。
 
@@ -50,8 +54,8 @@ npm.cmd test
 npm.cmd run build:target -- ocean-shelter
 ~~~
 
-1. **核对产物。** 查看构建日志中的入口、渲染器和打包素材。涉及资源分包或远程模式时，对照 `dist/resources/` 和 `game.json`。验证其他目标后，重新构建本次交付目标。
-2. **验证首屏和关键操作。** 在微信开发者工具编译当前产物，核对目标首屏、HUD 和关键触摸路径。涉及场景切换时检查退出和重进。涉及资源时检查实际读取路径与加载失败处理。
+1. **核对产物。** 查看构建日志中的入口、渲染器和打包素材。涉及资源分包或远程模式时，对照 `dist/resources/` 和 `game.json`。验证其他目标或资源模式后，按本次交付的目标和资源模式重新构建。
+2. **验证首屏和关键操作。** 在微信开发者工具编译当前产物，核对目标首屏、HUD 和关键触摸路径。涉及场景切换时检查退出和重进。涉及资源时检查实际读取路径与加载失败处理。新增或修改远程模式时，分别构建默认分包与 `--runtime-url` 模式，确认主包 HUD 可用，至少一个运行资源通过各自的来源实际加载。远程模式还要核对运行资源分包已从产物中移除。
 3. **记录平台差异。** 分别记录本地构建、模拟器、微信预览和真机的结果。远程真机验收按 [资源联调说明](ARCHITECTURE_AND_USAGE.md#33-真机预览与日志定位) 验证已登记的 HTTPS 下载域名与冷启动。
 4. **定位预览文件错误。** 出现旧路径的 `ENOENT` 时，先比对当前目标清单、产物和微信工具打包配置，并检查项目文件列表缓存。以实际预览结果确认打包修复。 [旧素材故障记录](development/wechat-preview-enoent.md)
 
@@ -59,11 +63,11 @@ npm.cmd run build:target -- ocean-shelter
 
 ## 5. 归档与交付
 
-交付前把业务变更、框架接口、资源或构建改动和故障修复记入 [开发归档](development/README.md#如何补充记录)。对应主题已有记录时补充证据和结果，新增主题时同步更新索引。
+交付前把业务变更、框架接口、资源、构建、开发流程改动和故障修复记入 [开发归档](development/README.md#如何补充记录)。对应主题已有记录时补充证据和结果，新增主题时同步更新索引。
 
 交付时记录以下内容，便于下一个开发者或 AI 接手。
 
 - 交付的 App、入口、构建命令和首屏。
 - 主要业务改动，以及涉及的共享接口和受影响目标。
 - 主包素材和运行时素材的来源，远程模式还应记录资源版本或 URL 类型。
-- 已运行的验证和实际结果，以及待验证项和当前留在工作区的构建目标。
+- 已运行的验证和实际结果，以及待验证项和当前留在工作区的构建目标及资源模式。

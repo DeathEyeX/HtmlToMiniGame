@@ -1,26 +1,12 @@
 # PixiWechatTest 架构与使用指南
 
-核对日期为 2026-11-23。这里描述当前工程的 TypeScript 入口、构建模式、平台适配、UI 扩展和验收流程。[目标架构与实施路线](FRAMEWORK_ARCHITECTURE.md) · [迁移与交接](PROJECT_STATUS_AND_AGENT_HANDOFF.md) · [QA 与故障处理记录](QA.md)
+这里描述工程的 TypeScript 入口、构建模式、平台适配、UI 扩展和验收流程。[目标架构与实施路线](FRAMEWORK_ARCHITECTURE.md) · [迁移与交接](PROJECT_STATUS_AND_AGENT_HANDOFF.md) · [QA 与故障处理记录](QA.md)
 
-## 1. 当前基线
+## 1. 构建目标与命令
 
-每个应用有自己的 TypeScript 入口。构建按 `scripts/targets.json` 选一个入口，由 esbuild 生成 ES2019 IIFE。3D 基线是 `three-platformize@1.133.3` 与 WebGL1，2D 采用 `pixi.js@8.23.0` 的 Graphics、Container、Sprite 和 BitmapText。微信固定通过 `game.js` 加载 `dist/game.bundle.js`。
+每个应用有自己的 TypeScript 入口。构建按 [目标清单](../scripts/targets.json) 选一个入口，由 esbuild 生成 ES2019 IIFE。3D 使用 `three-platformize`，默认采用 WebGL1。2D 采用 PixiJS 的 Graphics、Container、Sprite 和 BitmapText。微信通过 `game.js` 加载当前工作区的 `dist/game.bundle.js`。
 
-| 目标 | 命令 | 运行结果 | JS 字节数 |
-| --- | --- | --- | ---: |
-| `controls` | `npm.cmd run build:target -- controls` | 立方体与 Pixi 操作面板 | 1,046,342 |
-| `model-viewer` | `npm.cmd run build:target -- model-viewer` | Littlest Tokyo、Toon、动画和 Pixi 操作面板 | 1,757,197 |
-| `showcase` | `npm.cmd run build:target -- showcase` | 首页、配装台、颜色匹配与场景往返 | 1,105,909 |
-| `showcase-model` | `npm.cmd run build:target -- showcase-model` | 集成首页同时提供模型、进度和重试 | 1,818,263 |
-| `webgl2` | `npm.cmd run build:target -- webgl2` | WebGL2 原生探针、立方体和 Pixi HUD | 1,049,188 |
-| `webgl2-model` | `npm.cmd run build:target -- webgl2-model` | WebGL2 原生探针、Littlest Tokyo 和 Pixi HUD | 1,760,052 |
-| `pixi-ui` | `npm.cmd run build:target -- pixi-ui` | Sprite、BitmapText 和触摸计数 | 1,092,089 |
-| `workbench` | `npm.cmd run build:target -- workbench` | 直接进入配装台 | 1,097,375 |
-| `color-match` | `npm.cmd run build:target -- color-match` | 直接进入颜色匹配 | 1,095,131 |
-
-九个目标都通过 ES2019 解析。`showcase`、`showcase-model`、`pixi-ui`、`workbench` 和 `color-match` 各生成一个 402 字节 PNG。默认 `showcase` 的 bundle 排除模型 HUD、GLB／Draco 和 WebGL2 探针。构建在原 `dist/` 目录更新产物和素材。微信工具编译最近一次成功生成的目标，实际预览包大小由微信工具显示。
-
-`npm.cmd run build:list` 列出目标、渲染器及入口。`npm.cmd run build:target -- <目标名>` 检查该目标的 TypeScript 依赖并构建。全仓类型检查使用 `npm.cmd run typecheck`，自动验证使用 `npm.cmd test`。
+`npm.cmd run build:list` 列出当前目标、渲染器及入口。`npm.cmd run build:target -- <目标名>` 检查该目标的 TypeScript 依赖并构建。全仓类型检查使用 `npm.cmd run typecheck`，自动验证使用 `npm.cmd test`。微信工具编译最近一次成功生成的目标，实际预览包大小由微信工具显示。
 
 ### 1.1 入口与渲染配置
 
@@ -32,7 +18,23 @@
 
 ### 1.2 旧命令迁移
 
-构建统一使用 `npm.cmd run build:target -- <目标名>`。把旧脚本中固定目标的别名换成上表对应的命令。例如 `build:app:model` 改为 `npm.cmd run build:target -- showcase-model`。新增应用在 `scripts/targets.json` 登记目标即可。
+构建统一使用 `npm.cmd run build:target -- <目标名>`。用 `npm.cmd run build:list` 查目标名，再替换旧脚本中的固定别名。例如 `build:app:model` 改为 `npm.cmd run build:target -- showcase-model`。新增应用在 `scripts/targets.json` 登记目标即可。
+
+### 1.3 2026-11-23 构建快照
+
+下表记录当时的本地构建结果和 JS 字节数。九个目标都通过 ES2019 解析。`showcase`、`showcase-model`、`pixi-ui`、`workbench` 和 `color-match` 各生成一个 402 字节 PNG。默认 `showcase` 的 bundle 排除模型 HUD、GLB／Draco 和 WebGL2 探针。
+
+| 目标 | 当时的运行结果 | JS 字节数 |
+| --- | --- | ---: |
+| `controls` | 立方体与 Pixi 操作面板 | 1,046,342 |
+| `model-viewer` | Littlest Tokyo、Toon、动画和 Pixi 操作面板 | 1,757,197 |
+| `showcase` | 首页、配装台、颜色匹配与场景往返 | 1,105,909 |
+| `showcase-model` | 集成首页同时提供模型、进度和重试 | 1,818,263 |
+| `webgl2` | WebGL2 原生探针、立方体和 Pixi HUD | 1,049,188 |
+| `webgl2-model` | WebGL2 原生探针、Littlest Tokyo 和 Pixi HUD | 1,760,052 |
+| `pixi-ui` | Sprite、BitmapText 和触摸计数 | 1,092,089 |
+| `workbench` | 直接进入配装台 | 1,097,375 |
+| `color-match` | 直接进入颜色匹配 | 1,095,131 |
 
 ## 2. 运行架构
 
@@ -192,7 +194,7 @@ npm.cmd run build:target -- model-viewer
 | 拖动与命中 | 拖动顶部双线把手，面板与所有子控件一起移动。放下后在新位置点击 `+`，计数继续增加。 |
 | 3D 输入隔离 | 在面板外开始拖动，模型视角旋转，面板位置与计数保持原样。 |
 
-开发者曾确认首页与模型联合构建、WebGL2 专项、Pixi UI 的 `Intl` 修复及配装台 UI。渲染设置调整后的本地基线包含 22 项自动回归、九种构建、依赖及素材隔离检查。当前产物的微信端验收由开发者执行。
+开发者曾确认首页与模型联合构建、WebGL2 专项、Pixi UI 的 `Intl` 修复及配装台 UI。2026-11-23 的本地快照包含 22 项自动回归、九种构建、依赖及素材隔离检查。按 [工作流的验收步骤](AGENT_WORKFLOW.md#4-构建并验证) 验证当次产物。
 
 新增控件时在 HUD 内定义视觉、命中区域和状态更新，单击动作在 `release` 内提交，拖动控件在 `move` 内更新，取消时恢复临时交互状态。
 
@@ -239,7 +241,7 @@ export const createHud: CreateHudView = (stage) => {
 
 - `packagedResources` 递归复制到 `dist/resources/packaged/<目标名>/`。首屏 HUD、加载提示和其他启动素材可放在这里。
 - `runtimeResources` 默认递归复制到 `dist/resources/<目标名>/`。构建同步更新 `game.json`，在第一次读取时由框架加载微信分包。模型和它引用的贴图可以保持相邻的相对路径。
-- 构建时传 `--runtime-url <资源目录 URL>`，会从该地址读取运行时素材，构建产物省去该资源分包。将运行时目录按原结构部署到对应 URL，换素材时使用版本化的目录。微信真机预览使用登记过的 HTTPS 下载域名。 [小游戏网络配置](https://intl.cloud.tencent.com/zh/document/product/1219/68066)
+- `--runtime-url <资源目录 URL>` 向产物注入 `GAME_RUNTIME_ASSET_URL` 并省略该资源分包。App 读取该值并选择 `remote` 来源，默认构建选择 `subpackage` 来源。将运行时目录按原结构部署到对应 URL，换素材时使用版本化的目录。微信真机预览使用登记过的 HTTPS 下载域名。 [App 接入步骤](AGENT_WORKFLOW.md#3-声明主包和运行资源) · [小游戏网络配置](https://intl.cloud.tencent.com/zh/document/product/1219/68066)
 - App 通过 `createResourceLoader(source)` 取得 `loadImage(relativePath)` 和 `readBinary(relativePath)`。加载器合并同一分包的并发挂载请求，远程模式合并同一文件的下载并复用本次会话的临时路径。App 负责把读到的资源交给 Three.js 或 PixiJS，以及处理加载失败后的界面。
 
 ## 6. 当前产物和发布验收

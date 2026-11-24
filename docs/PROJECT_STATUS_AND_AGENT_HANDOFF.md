@@ -1,6 +1,6 @@
 # PixiWechatTest 项目状态与 Agent 开发交接
 
-核对日期为 2026-11-23。工程根目录为 `D:\Project\Web\ThreeJsTest\PixiWechatTest`。目标是可复用的微信小游戏框架，业务使用 TypeScript，3D 使用 Three.js，2D UI 暂定 PixiJS。现有 Littlest Tokyo 示例提供已跑通的 3D、Draco 和资源链路。
+这是 2026-11-23 的框架交接快照。工程根目录为 `D:\Project\Web\ThreeJsTest\PixiWechatTest`。目标是可复用的微信小游戏框架，业务使用 TypeScript，3D 使用 Three.js，2D UI 暂定 PixiJS。Littlest Tokyo 示例提供已跑通的 3D、Draco 和资源链路。当前目标和后续验证分别见 [构建目标与命令](ARCHITECTURE_AND_USAGE.md#1-构建目标与命令) 和 [开发归档](development/README.md)。
 
 ## 1. 接手结论
 
@@ -120,7 +120,7 @@
 
 | 状态 | 证据或待验项 |
 | --- | --- |
-| 本轮本地通过：构建与产物 | 22 项自动回归及九个构建通过，产物依赖和素材清单逐目标核对，bundle 均通过 ES2019 解析。默认 WebGL1 的 `showcase-model` JS 为 1,818,263 字节，图集为 402 字节。[完整尺寸](ARCHITECTURE_AND_USAGE.md#1-当前基线) |
+| 本轮本地通过：构建与产物 | 22 项自动回归及九个构建通过，产物依赖和素材清单逐目标核对，bundle 均通过 ES2019 解析。默认 WebGL1 的 `showcase-model` JS 为 1,818,263 字节，图集为 402 字节。[当时的构建尺寸](ARCHITECTURE_AND_USAGE.md#13-2026-11-23-构建快照) |
 | 本轮单应用接入验证 | 在隔离工程只增加应用的入口、HUD 和一条目标映射。保留或删除无关应用均能构建，未引用的公共模块和图片未进入产物。软件 WebGL 验证立方体和自定义 Pixi HUD 同屏。 |
 | 目录重构与颜色匹配本地通过 | 软件 WebGL 使用模拟微信输入，验证配装台、颜色匹配、后台计时暂停、重开和重进。真实 GLB 的本地联调覆盖取消、503 重试、缓存和销毁。当前构建仍需微信工具和目标手机复测。 |
 | Pixi UI 诊断及配装台通过开发者验收 | 原 Pixi UI 诊断包的 `Intl` 修复已有真机通过反馈，`showcase` 的配装台新增 UI 也获开发者确认。首次读取、重进复用和图集加载失败由桌面软件 WebGL 单独验证。配装台验收未附机型、基础库和包分析。 |

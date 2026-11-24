@@ -1,10 +1,10 @@
 # 微信小游戏框架架构与易用性审核
 
-核对日期为 2026-11-23。工程用 TypeScript 编写应用，以 Three 渲染 3D、PixiJS 绘制 UI，再生成微信小游戏可加载的产物。[构建与使用](ARCHITECTURE_AND_USAGE.md) · [故障与检验记录](QA.md) · [迁移与交接](PROJECT_STATUS_AND_AGENT_HANDOFF.md)
+工程用 TypeScript 编写应用，以 Three 渲染 3D、PixiJS 绘制 UI，再生成微信小游戏可加载的产物。[构建与使用](ARCHITECTURE_AND_USAGE.md) · [故障与检验记录](QA.md) · [迁移与交接](PROJECT_STATUS_AND_AGENT_HANDOFF.md)
 
 ## 1. 可用性结论
 
-当前可作为同仓库开发微信小游戏的应用模板。新应用从自身 TypeScript 入口启动，复用平台、渲染、手势和资源能力。当前已本地验证九种构建、独立配装台、颜色匹配、集成首页、Pixi 位图图集以及真实 GLB 回归。微信工具与目标手机的当前产物验收、实际包大小和关闭调试的公网资源链路待开发者记录。
+本工程可作为同仓库开发微信小游戏的应用模板。新应用从自身 TypeScript 入口启动，复用平台、渲染、手势和资源能力。用 `npm.cmd run build:list` 查看当前目标，并按 [AI 业务开发工作流](AGENT_WORKFLOW.md#4-构建并验证) 验收当次产物。
 
 ## 2. 模块划分
 
@@ -41,7 +41,7 @@ dist/                            生成的 bundle 和选定素材
 
 ### 2.3 构建入口
 
-`scripts/targets.json` 对每个目标指定一个入口。本地执行 `npm.cmd run build:list` 查入口，使用 `npm.cmd run build:target -- <目标名>` 构建。每目标类型检查只验证其入口的依赖和项目声明，`npm.cmd run typecheck` 执行全仓检查。产物固定由 `game.js` 加载，微信工具切换目标时重新编译。[目标与命令](ARCHITECTURE_AND_USAGE.md#1-当前基线)
+`scripts/targets.json` 对每个目标指定一个入口。本地执行 `npm.cmd run build:list` 查入口，使用 `npm.cmd run build:target -- <目标名>` 构建。每目标类型检查只验证其入口的依赖和项目声明，`npm.cmd run typecheck` 执行全仓检查。产物固定由 `game.js` 加载，微信工具切换目标时重新编译。[目标与命令](ARCHITECTURE_AND_USAGE.md#1-构建目标与命令)
 
 只有目标入口可达的代码进入 bundle。模型查看和 WebGL2 分别在需要的构建中装配。延迟 `import()` 用于推迟初始化，在单文件 IIFE 中仍属于同一产物。可按需从具体功能导入公共模块，避免全量注册产生额外依赖。[esbuild Tree Shaking](https://esbuild.github.io/api/#tree-shaking)
 
@@ -56,9 +56,11 @@ dist/                            生成的 bundle 和选定素材
 
 素材源文件放在 `media/`。目标通过 `assets` 声明单文件，通过 `packagedResources` 声明随主包发布的素材目录，通过 `runtimeResources` 声明运行时资源目录。构建验证素材和类型，更新 `dist/` 和由目标管理的分包声明，并移除上一目标的多余素材。更新失败时恢复受影响的文件。验收包体时，以开发者工具的实际包分析为准。
 
-运行时资源默认由微信分包提供，也可以通过目标构建参数切换到远程资源服务。既有模型查看器通过专用 GLB 加载器下载并管理版本缓存。 [运行时资源](ARCHITECTURE_AND_USAGE.md#运行时资源) · [模型普通预览](PROJECT_STATUS_AND_AGENT_HANDOFF.md#74-关闭调试的普通扫码验收)
+运行时资源默认由微信分包提供。支持远程模式的 App 使用构建注入的地址选择远程来源。既有模型查看器通过专用 GLB 加载器下载并管理版本缓存。 [运行时资源](ARCHITECTURE_AND_USAGE.md#运行时资源) · [模型普通预览](PROJECT_STATUS_AND_AGENT_HANDOFF.md#74-关闭调试的普通扫码验收)
 
 ## 5. 分阶段实施与验收
+
+下表保留 2026-11-23 的本地验证结果和当时的待验项。后续验证见 [开发归档](development/README.md)。
 
 | 状态 | 检查 |
 | --- | --- |

@@ -7,6 +7,7 @@
 | `ocean-shelter`、独立入口、船体剖面、舱室、HUD | [海上避难所](ocean-shelter.md) |
 | `startGame`、`touchcancel`、OrbitControls、阴影和渲染钩子 | [共享场景运行时](framework.md#共享场景运行时) |
 | `packagedResources`、`runtimeResources`、`--runtime-url`、GLB 外部贴图 | [主包与运行时资源](framework.md#主包与运行时资源) |
+| `AGENTS.md`、工作目录、多 Agent、构建产物覆盖、历史基线 | [Agent 工作流审核](framework.md#agent-工作流审核) |
 | 预览 `ENOENT`、`dist/media/pixi-ui-probe.png`、旧图集 | [微信预览读取旧素材](wechat-preview-enoent.md) |
 | 既有模型查看器、Draco、Pixi 初始化、触摸故障和验收基线 | [QA 记录](../QA.md) · [模型与首版交接](../PROJECT_STATUS_AND_AGENT_HANDOFF.md) |
 
@@ -18,7 +19,7 @@ rg -n 'ocean-shelter|ENOENT|runtimeResources' docs/development docs/QA.md
 
 ## 如何补充记录
 
-交付业务功能、共享接口、资源或构建变更，以及可复用的故障修复时，更新对应主题。复发或复验时，在已有记录补上新证据和结果。新增主题时，在上表添加入口和可搜索的关键词。
+交付业务功能，修改共享接口、资源、构建或开发流程，以及完成可复用的故障修复时，更新对应主题。复发或复验时，在已有记录补上新证据和结果。新增主题时，在上表添加入口和可搜索的关键词。
 
 | 字段 | 要记录的内容 |
 | --- | --- |
