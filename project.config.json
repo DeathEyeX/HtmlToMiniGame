@@ -52,6 +52,10 @@
         "type": "folder"
       },
       {
+        "value": "dist/media",
+        "type": "folder"
+      },
+      {
         "value": "tsconfig.json",
         "type": "file"
       },

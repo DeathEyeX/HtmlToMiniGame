@@ -65,6 +65,27 @@ test('native scene drag turns OrbitControls before and after registering a HUD',
   assert.equal(attempts, 1);
 });
 
+test('custom scene touch receives native cancellation and shares the existing HUD routing', () => {
+  const { platform, camera, send } = createInput();
+  const before = camera.position.clone();
+  const received = [];
+  platform.sceneTouch = event => received.push(event.type);
+  platform.hud = { beginGesture: ({ x }) => x < 100 ? { move() {}, release() {}, cancel() {} } : undefined };
+  send('Start', 40, 90);
+  send('Move', 140, 100);
+  send('End', 140, 100);
+  send('Start', 230, 260);
+  send('Move', 85, 95);
+  send('Cancel', 85, 95);
+  assert.deepEqual(received, ['touchstart', 'touchmove', 'touchcancel']);
+  assert.equal(camera.position.distanceTo(before), 0);
+  platform.sceneTouch = undefined;
+  send('Start', 230, 260);
+  send('Move', 150, 95);
+  send('End', 150, 95);
+  assert.ok(camera.position.distanceTo(before) > 0.01);
+});
+
 test('HUD activation happens on release, and leaving or cancelling keeps the camera still', () => {
   const { platform, camera, send } = createInput();
   const before = camera.position.clone();

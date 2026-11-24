@@ -2,7 +2,7 @@ import {
   Color, type PerspectiveCamera, PLATFORM, Scene, WebGL1Renderer, type WebGLRenderer
 } from 'three-platformize';
 import type { OrbitControls } from 'three-platformize/examples/jsm/controls/OrbitControls';
-import { WechatPlatform } from '../platform/WechatPlatform';
+import { WechatPlatform, type RoutedTouchEvent } from '../platform/WechatPlatform';
 import { loadHud } from '../ui/loadHud';
 import type { CreateHudView } from '../ui/PixiHud';
 
@@ -10,10 +10,14 @@ declare const GAME_RENDERER: 'webgl1' | 'webgl2';
 
 interface SceneSetup {
   camera: PerspectiveCamera;
-  controls: OrbitControls;
+  controls?: OrbitControls;
+  touch?(event: RoutedTouchEvent): void;
+  resize?(width: number, height: number): void;
   update(delta: number): void;
+  afterRender?(): void;
   dispose?(): void;
-  renderSettings?: Partial<Pick<WebGLRenderer, 'outputEncoding' | 'toneMapping' | 'toneMappingExposure'>>;
+  renderSettings?: Partial<Pick<WebGLRenderer, 'outputEncoding' | 'toneMapping' | 'toneMappingExposure' | 'physicallyCorrectLights'>>;
+  shadowSettings?: Partial<Pick<WebGLRenderer['shadowMap'], 'enabled' | 'type' | 'autoUpdate' | 'needsUpdate'>>;
 }
 
 export type CreateLocalScene = (
@@ -51,7 +55,15 @@ export async function startGame(
   const defaultRenderSettings = {
     outputEncoding: renderer.outputEncoding,
     toneMapping: renderer.toneMapping,
-    toneMappingExposure: renderer.toneMappingExposure
+    toneMappingExposure: renderer.toneMappingExposure,
+    physicallyCorrectLights: renderer.physicallyCorrectLights
+  };
+  const shadowMap = renderer.shadowMap;
+  const defaultShadowSettings = shadowMap && {
+    enabled: shadowMap.enabled,
+    type: shadowMap.type,
+    autoUpdate: shadowMap.autoUpdate,
+    needsUpdate: shadowMap.needsUpdate
   };
   function createWorld() {
     const scene = new Scene();
@@ -61,14 +73,19 @@ export async function startGame(
 
   let scene = createWorld();
   let active = await createScene(scene, renderer, element);
-  Object.assign(renderer, defaultRenderSettings, active.renderSettings);
   let viewport = screenSize();
 
   let hud: Awaited<ReturnType<typeof loadHud>> | undefined;
+  function applySceneSettings() {
+    Object.assign(renderer, defaultRenderSettings, active.renderSettings);
+    if (shadowMap) Object.assign(shadowMap, defaultShadowSettings, active.shadowSettings);
+    platform.sceneTouch = active.touch;
+  }
   function fitCamera() {
     active.camera.aspect = viewport.width / viewport.height;
+    active.resize?.(viewport.width, viewport.height);
     active.camera.updateProjectionMatrix();
-    active.controls.update();
+    active.controls?.update();
   }
   function resize() {
     fitCamera();
@@ -84,6 +101,7 @@ export async function startGame(
     }
   }
 
+  applySceneSettings();
   resize();
   wx.onWindowResize?.((size) => {
     const screen = screenSize();
@@ -110,9 +128,10 @@ export async function startGame(
       active.update(Math.min((time - previousTime) / 1000, 0.05));
     }
     previousTime = time;
-    active.controls.update();
+    active.controls?.update();
     renderer.resetState();
     renderer.render(scene, active.camera);
+    active.afterRender?.();
     if (reportFirstThreeFrame) {
       reportFirstThreeFrame = false;
       reportFrame('Three');
@@ -157,11 +176,11 @@ export async function startGame(
     switchScene<T extends SceneSetup>(createNext: (...args: Parameters<CreateLocalScene>) => T): T {
       const next = createWorld();
       const setup = createNext(next, renderer, element);
-      active.controls.dispose();
+      active.controls?.dispose();
       active.dispose?.();
       scene = next;
       active = setup;
-      Object.assign(renderer, defaultRenderSettings, active.renderSettings);
+      applySceneSettings();
       previousTime = undefined;
       fitCamera();
       return setup;

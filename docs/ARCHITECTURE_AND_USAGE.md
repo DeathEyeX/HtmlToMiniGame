@@ -199,7 +199,7 @@ npm.cmd run build:target -- model-viewer
 ## 5. 新增应用和素材
 
 1. 在 `src/game/apps/<项目名>/` 新建 `main.ts`，组织自己的场景与 HUD。单场景可参考 `apps/color-match/main.ts`，带多页面的应用可参考 `apps/showcase/`。场景工厂返回相机、OrbitControls、`update(delta)` 和资源释放函数。
-2. 在 `scripts/targets.json` 登记目标。只需入口，使用包内素材时才添加 `assets`。
+2. 在 `scripts/targets.json` 登记目标。单文件素材使用 `assets`。App 的主包素材目录使用 `packagedResources`，运行时素材目录使用 `runtimeResources`，两者都相对于 `media/`。
 
    ```json
    "first-game": { "entry": "src/game/apps/first-game/main.ts" }
@@ -232,6 +232,13 @@ export const createHud: CreateHudView = (stage) => {
 ```
 
 把小图放在 `media/`，在目标的 `assets` 中填写相对路径，如 `first-game/panel.png`，运行时用 `dist/resources/first-game/panel.png` 加载。构建仅复制所选目标的素材并重新生成 `dist/`。把多个应用实际共用的业务模块按功能放入 `src/game/common/`。HUD 通过延迟导入注册扩展，保留微信环境初始化顺序。
+
+### 运行时资源
+
+- `packagedResources` 递归复制到 `dist/resources/packaged/<目标名>/`。首屏 HUD、加载提示和其他启动素材可放在这里。
+- `runtimeResources` 默认递归复制到 `dist/resources/<目标名>/`。构建同步更新 `game.json`，在第一次读取时由框架加载微信分包。模型和它引用的贴图可以保持相邻的相对路径。
+- 构建时传 `--runtime-url <资源目录 URL>`，会从该地址读取运行时素材，构建产物省去该资源分包。将运行时目录按原结构部署到对应 URL，换素材时使用版本化的目录。微信真机预览使用登记过的 HTTPS 下载域名。 [小游戏网络配置](https://intl.cloud.tencent.com/zh/document/product/1219/68066)
+- App 通过 `createResourceLoader(source)` 取得 `loadImage(relativePath)` 和 `readBinary(relativePath)`。加载器合并同一分包的并发挂载请求，远程模式合并同一文件的下载并复用本次会话的临时路径。App 负责把读到的资源交给 Three.js 或 PixiJS，以及处理加载失败后的界面。
 
 ## 6. 当前产物和发布验收
 

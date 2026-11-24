@@ -1,7 +1,7 @@
 import { WechatGamePlatform } from 'three-platformize/src/WechatGamePlatform';
 
 type TouchEvent = Parameters<Parameters<typeof wx.onTouchStart>[0]>[0];
-type RoutedTouchEvent = TouchEvent & { type: string };
+export type RoutedTouchEvent = TouchEvent & { type: string };
 type Touch = TouchEvent['touches'][number] & { x?: number; y?: number };
 
 interface Point {
@@ -23,6 +23,7 @@ function touchPoint(touch: Touch): Point | undefined {
 
 export class WechatPlatform extends WechatGamePlatform {
   hud?: { beginGesture(point: Point): HudGesture | undefined };
+  sceneTouch?: (event: RoutedTouchEvent) => void;
   private owner?: 'hud' | 'scene';
   private pressedId?: number;
   private gesture?: HudGesture;
@@ -57,6 +58,8 @@ export class WechatPlatform extends WechatGamePlatform {
       } else if (event.type === 'touchmove' && point) {
         this.gesture?.move(point);
       }
+    } else if (this.sceneTouch) {
+      this.sceneTouch(event);
     } else if (event.type === 'touchcancel') {
       for (const touch of changedTouches) {
         super.dispatchTouchEvent({ ...event, type: 'touchend', changedTouches: [touch] });

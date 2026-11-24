@@ -11,7 +11,7 @@ npm.cmd ci
 npm.cmd run build:target -- showcase
 ```
 
-在微信开发者工具中以小游戏模式导入当前目录并点击「编译」。首页的蓝色箭头进入配装台，紫色三色按钮进入 20 秒颜色匹配。两个玩法均可离线启动。
+在微信开发者工具中以小游戏模式导入当前目录并点击「编译」。集成首页的蓝色箭头进入配装台，紫色三色按钮进入 20 秒颜色匹配。
 
 | 想运行的内容 | 命令 |
 | --- | --- |
@@ -19,7 +19,8 @@ npm.cmd run build:target -- showcase
 | 直接进入配装台 | `npm.cmd run build:target -- workbench` |
 | 直接进入颜色匹配 | `npm.cmd run build:target -- color-match` |
 | Pixi 图集、位图数字及点按 | `npm.cmd run build:target -- pixi-ui` |
-| 首页与两个玩法 | `npm.cmd run build:target -- showcase` |
+| 直接进入海上避难所 | `npm.cmd run build:target -- ocean-shelter` |
+| 首页、配装台与颜色匹配 | `npm.cmd run build:target -- showcase` |
 | 独立模型或首页加模型 | `npm.cmd run build:target -- model-viewer`、`npm.cmd run build:target -- showcase-model` |
 | WebGL2 基础、模型 | `npm.cmd run build:target -- webgl2`、`npm.cmd run build:target -- webgl2-model` |
 | 查看或指定目标 | `npm.cmd run build:list`、`npm.cmd run build:target -- <目标名>` |
@@ -37,3 +38,13 @@ npm.cmd run build:target -- showcase
 新增应用时，建一个应用目录并在 `scripts/targets.json` 登记入口，再执行 `npm.cmd run build:target -- <目标名>`。[新增应用与资源指南](docs/ARCHITECTURE_AND_USAGE.md#5-新增应用和素材)
 
 `npm.cmd run typecheck` 检查全仓 TypeScript，`npm.cmd test` 运行自动回归。[框架架构与易用性审核](docs/FRAMEWORK_ARCHITECTURE.md) · [QA 与故障处理记录](docs/QA.md) · [迁移及 Agent 交接](docs/PROJECT_STATUS_AND_AGENT_HANDOFF.md)
+
+## 海上避难所
+
+构建 `ocean-shelter` 后，在微信开发者工具点击「编译」即可直达全船总览。支持单指转动、双指缩放和点按舱室。底部可切换舱室清单、船员、垂钓甲板、海况和全船总览，温室详情可进入移栽工作台。
+
+入口、Three.js 场景、镜头和 Pixi HUD 位于 `src/game/apps/ocean-shelter/`。 `media/ocean-shelter/packaged/ui/` 的 HUD 素材随主包发布，`media/ocean-shelter/runtime/` 的模型、贴图和环境光由共享资源加载器读取。默认构建把运行素材放进微信资源分包。
+
+远程部署时，将 `media/ocean-shelter/runtime/` 的内容按原目录结构发布到资源服务，再执行 `npm.cmd run build:target -- ocean-shelter --runtime-url https://你的资源域名/ocean-shelter/v1/`。该构建在运行时下载场景素材，主包继续提供 HUD。 [运行时资源配置](docs/ARCHITECTURE_AND_USAGE.md#运行时资源)
+
+修改中文 HUD 文案后，可在带 Pillow 和宋体的 Windows 环境运行 `python scripts/build-ocean-glyphs.py` 更新字形图集。

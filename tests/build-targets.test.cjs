@@ -38,10 +38,19 @@ test('each target bundles one application and only its selected modules and pack
     for (const file of Object.keys(inputs).filter((file) => file.startsWith('src/game/apps/'))) {
       assert(file.startsWith(app), `${name} unexpectedly includes ${file}`);
     }
-    assert.deepEqual(readAssets(name).map(({ file }) => file), assets, name);
+    const packaged = readAssets(name).map(({ file }) => file);
+    assert.deepEqual(packaged.slice(0, assets.length), assets, name);
+    const ocean = name === 'ocean-shelter';
+    assert.equal(Object.hasOwn(inputs, 'src/game/apps/ocean-shelter/OceanShelter.ts'), ocean, name);
+    assert.equal(Object.hasOwn(inputs, 'src/game/apps/ocean-shelter/OceanShelterHud.ts'), ocean, name);
+    assert.equal(packaged.includes('ocean-shelter/models/galley/range.glb'), ocean, name);
+    assert.equal(packaged.includes('ocean-shelter/models/galley/range-0.png'), ocean, name);
+    assert.equal(packaged.includes('packaged/ocean-shelter/ui/ui-glyphs.png'), ocean, name);
+    assert.equal(packaged.includes('ocean-shelter/environment/overcast-hdr.bin'), ocean, name);
     assert.equal(Object.hasOwn(inputs, webgl2Renderer), renderer === 'webgl2', name);
 
     if (!shippedTargets.has(name)) continue;
+    assert.deepEqual(packaged, assets, name);
     const has = (file) => Object.hasOwn(inputs, file);
     assert.equal(has('src/framework/assets/model/draco/draco_decoder.js'), modelTargets.has(name), name);
     assert.equal(has('src/game/apps/showcase/ModelHud.ts'), name === 'showcase-model', name);
@@ -50,6 +59,19 @@ test('each target bundles one application and only its selected modules and pack
     assert.equal(has('src/game/common/color-match/ColorMatch.ts'), name === 'color-match' || name.startsWith('showcase'), name);
     assert.deepEqual(assets, atlasTargets.has(name) ? ['pixi-ui-probe.png'] : [], name);
   }
+});
+
+test('a remote runtime source keeps only the app bootstrap resources in the package', () => {
+  const url = 'https://assets.example.com/ocean-shelter/v1';
+  const { outputFiles: [bundle] } = compileTarget('ocean-shelter', url);
+  assert.ok(bundle.text.includes(url + '/'));
+  const local = readAssets('ocean-shelter').map(({ file }) => file);
+  const remote = readAssets('ocean-shelter', url).map(({ file }) => file);
+  assert.ok(remote.includes('packaged/ocean-shelter/ui/ui-glyphs.png'));
+  assert.deepEqual(remote, local.filter(file => file.startsWith('packaged/ocean-shelter/')));
+  assert.ok(local.some(file => file.startsWith('ocean-shelter/models/')));
+  assert.throws(() => compileTarget('ocean-shelter', 'file:///resources'), /HTTP/);
+  assert.throws(() => compileTarget('controls', url), /未声明运行时资源/);
 });
 
 test('an application opts into WebGL2 from its target settings alone', () => {
