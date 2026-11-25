@@ -1,65 +1,74 @@
-# PixiWechatTest
+# HtmlToMiniGame
 
-基于 TypeScript、Three 和 PixiJS 的微信小游戏工程。每个应用有独立的 TypeScript 入口，支持在本地浏览器联调，并通过微信开发者工具做平台验收。
+简体中文 · [English](README.en.md)
 
-启动 Agent 开发任务时，把工作目录设为本工程根目录 `PixiWechatTest/`。开发从阅读 [AGENTS.md](AGENTS.md) 和 [AI 业务开发工作流](docs/AGENT_WORKFLOW.md) 开始。
-应用改动、框架扩展和故障修复可按主题查询 [开发归档](docs/development/README.md)。
+HtmlToMiniGame 是一套将交互式 Web 原型移植到微信小游戏的 TypeScript 工程。Three.js（`three-platformize`）负责 3D 场景，PixiJS 负责 HUD。共享运行时管理 Canvas、WebGL 上下文、帧循环和输入分流。每个应用都可以独立在浏览器预览或构建为微信小游戏。
 
-## 开始使用
+## 快速开始
 
-使用 Node.js 22 LTS。在工程根目录安装依赖并启动一个 App 的网页预览。
+推荐使用 Node.js 22。在仓库根目录运行以下命令。Windows PowerShell 中可使用 `npm.cmd`。
 
-```powershell
-npm.cmd ci
-npm.cmd run build:list
-npm.cmd run dev:web -- nohara-house
+```sh
+npm ci
+npm run build:list
+npm run dev:web -- showcase
 ```
 
-在 Chrome 或 Edge 打开终端打印的 `http://127.0.0.1:<端口>/`。浏览器直接进入 App 首屏，保存已纳入构建的源码或素材后自动刷新。另开终端可以同时运行其他 App。网页预览在内存中构建，微信的 `dist/` 和 `game.json` 独立管理。 [网页联调流程](docs/AGENT_WORKFLOW.md#4-本地网页联调)
+打开终端打印的本地地址。Showcase 首页的蓝色箭头进入配装台，紫色三色按钮进入 20 秒颜色匹配。修改已纳入构建的源码或素材后，页面会自动刷新。新增、删除或重命名素材，以及修改目标配置后，需要重启预览。
 
-### 微信构建与验收
+### 微信小游戏
 
-需要在微信开发者工具验收时，在工程根目录构建对应目标。
-
-```powershell
-npm.cmd run build:target -- showcase
+```sh
+npm run build:target -- showcase
 ```
 
-在微信开发者工具中以小游戏模式导入当前目录并点击「编译」。集成首页的蓝色箭头进入配装台，紫色三色按钮进入 20 秒颜色匹配。
+在微信开发者工具中以「小游戏」模式导入仓库根目录，点击「编译」。切换应用时，将命令中的 `showcase` 换成对应的目标 ID，再重新编译。各目标共用一份 `dist/` 和 `game.json` 中由构建管理的分包配置。网页预览在内存中构建，可以与微信开发者工具并行使用。 [本地联调与微信验收流程](docs/AGENT_WORKFLOW.md#4-本地网页联调)
 
-| 想运行的内容 | 命令 |
+## 示例应用
+
+| 目标 | 内容 |
 | --- | --- |
-| 基础立方体与操作面板 | `npm.cmd run build:target -- controls` |
-| 直接进入配装台 | `npm.cmd run build:target -- workbench` |
-| 直接进入颜色匹配 | `npm.cmd run build:target -- color-match` |
-| Pixi 图集、位图数字及点按 | `npm.cmd run build:target -- pixi-ui` |
-| 直接进入海上避难所 | `npm.cmd run build:target -- ocean-shelter` |
-| 直接进入野原家的小屋 | `npm.cmd run build:target -- nohara-house` |
-| 首页、配装台与颜色匹配 | `npm.cmd run build:target -- showcase` |
-| 独立模型或首页加模型 | `npm.cmd run build:target -- model-viewer`、`npm.cmd run build:target -- showcase-model` |
-| WebGL2 基础、模型 | `npm.cmd run build:target -- webgl2`、`npm.cmd run build:target -- webgl2-model` |
-| 查看或指定目标 | `npm.cmd run build:list`、`npm.cmd run build:target -- <目标名>` |
+| `showcase` | 集成首页，包含配装台和颜色匹配入口 |
+| `workbench` / `color-match` | 独立运行配装台或 20 秒颜色匹配 |
+| `ocean-shelter` | 船体总览、舱室交互和温室移栽工作台 |
+| `nohara-house` | 可拖动视角、切换房间的卡通住宅 |
+| `drift-era` | 像素风海上庇护所，包含跨层通行和电台联络任务 |
+| `tidal-harbor` | 可在海上庇护所、水线和海底之间切换的 3D 场景 |
+| `saltwind-haven` | 模块化浮台、动态海面和功能区聚焦 |
+| `mad-water-haven` | 海上住宅和水下避难所，支持潜水观察 |
+| `controls` / `pixi-ui` / `webgl2` | 基础输入、Pixi 图集与点按、WebGL2 示例 |
+| `model-viewer` / `showcase-model` / `webgl2-model` | GLB／Draco 模型加载示例，需要单独提供 `model.glb` |
 
-微信模型目标需要启动同级 `WechatAssetServer` 并核对 `src/game/common/model-viewer/modelAsset.ts` 的 URL。 [模型运行步骤](docs/ARCHITECTURE_AND_USAGE.md#32-启动模型联调)
+完整列表以 `npm run build:list` 为准。模型目标可在仓库同级的 `WechatAssetServer/` 准备 `model.glb`。浏览器预览优先读取该文件，微信端通过 `modelAsset.ts` 配置的 URL 加载。 [模型联调说明](docs/ARCHITECTURE_AND_USAGE.md#32-启动模型联调)
 
-## 框架与新增应用
+## 项目结构与扩展
 
-- `src/framework/` 提供微信平台适配、共享渲染与输入、GLB／Draco 加载。
-- `src/game/apps/` 为每个独立应用提供入口，集成首页位于 `showcase/`。
-- `src/game/common/` 按功能保存实际共用的场景、玩法和 UI。
-- `scripts/targets.json` 指定各目标的入口和包内素材。`dist/` 由构建生成，微信固定通过 `game.js` 加载当前产物。
-- 在目标条目设置 `renderer` 可选 WebGL1 或 WebGL2，省略时使用 WebGL1。[渲染配置](docs/ARCHITECTURE_AND_USAGE.md#11-入口与渲染配置)
+| 路径 | 用途 |
+| --- | --- |
+| [`src/framework/`](src/framework/) | 平台适配、共享渲染与输入、资源加载 |
+| [`src/game/apps/`](src/game/apps/) | 各应用入口、Three.js 场景和 Pixi HUD |
+| [`src/game/common/`](src/game/common/) | 多个应用共用的场景、玩法和 UI |
+| [`media/`](media/) | HUD 图集、模型、贴图和其他源素材 |
+| [`scripts/targets.json`](scripts/targets.json) | 目标入口、WebGL 模式和素材声明 |
 
-新增应用时，建一个应用目录并在 `scripts/targets.json` 登记入口，再执行 `npm.cmd run build:target -- <目标名>`。[新增应用与资源指南](docs/ARCHITECTURE_AND_USAGE.md#5-新增应用和素材)
+新增应用时，在 `src/game/apps/<app-id>/main.ts` 调用 `startGame` 装配场景和 HUD，并在 `scripts/targets.json` 注册同名目标。默认使用 WebGL1，可通过目标的 `renderer` 字段选择 WebGL2。 [新增应用与素材](docs/ARCHITECTURE_AND_USAGE.md#5-新增应用和素材)
 
-`npm.cmd run typecheck` 检查全仓 TypeScript，`npm.cmd test` 运行自动回归。[框架架构与易用性审核](docs/FRAMEWORK_ARCHITECTURE.md) · [QA 与故障处理记录](docs/QA.md) · [迁移及 Agent 交接](docs/PROJECT_STATUS_AND_AGENT_HANDOFF.md)
+`packagedResources` 随微信主包提供，`runtimeResources` 默认进入微信资源分包。以 `ocean-shelter` 为例，也可以将 `media/ocean-shelter/runtime/` 的内容按原目录结构部署到资源服务，再构建远程资源版。将示例地址替换为自己的资源目录 URL。 [运行时资源配置](docs/ARCHITECTURE_AND_USAGE.md#运行时资源)
 
-## 海上避难所
+```sh
+npm run build:target -- ocean-shelter --runtime-url https://assets.example.com/ocean-shelter/v1/
+```
 
-构建 `ocean-shelter` 后，在微信开发者工具点击「编译」即可直达全船总览。支持单指转动、双指缩放和点按舱室。底部可切换舱室清单、船员、垂钓甲板、海况和全船总览，温室详情可进入移栽工作台。
+## 开发检查与文档
 
-入口、Three.js 场景、镜头和 Pixi HUD 位于 `src/game/apps/ocean-shelter/`。 `media/ocean-shelter/packaged/ui/` 的 HUD 素材随主包发布，`media/ocean-shelter/runtime/` 的模型、贴图和环境光由共享资源加载器读取。默认构建把运行素材放进微信资源分包。
+```sh
+npm run typecheck
+npm test
+```
 
-远程部署时，将 `media/ocean-shelter/runtime/` 的内容按原目录结构发布到资源服务，再执行 `npm.cmd run build:target -- ocean-shelter --runtime-url https://你的资源域名/ocean-shelter/v1/`。该构建在运行时下载场景素材，主包继续提供 HUD。 [运行时资源配置](docs/ARCHITECTURE_AND_USAGE.md#运行时资源)
+历史文档中的 `PixiWechatTest` 指本项目。文档示例中的本地目录请替换为你的仓库路径。
 
-修改中文 HUD 文案后，可在带 Pillow 和宋体的 Windows 环境运行 `python scripts/build-ocean-glyphs.py` 更新字形图集。
+- [框架架构](docs/FRAMEWORK_ARCHITECTURE.md)
+- [架构与使用指南](docs/ARCHITECTURE_AND_USAGE.md)
+- [AI 开发约定](AGENTS.md) · [业务开发工作流](docs/AGENT_WORKFLOW.md)
+- [开发归档](docs/development/README.md) · [QA 与故障处理](docs/QA.md)
