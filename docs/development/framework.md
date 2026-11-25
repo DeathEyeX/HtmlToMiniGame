@@ -60,12 +60,12 @@
 
 **交接**　工作区根目录产物为 `mad-water-haven`。本次验收产物位于 `.build/tooling-acceptance-38808a3b25/`。微信开发者工具可分别导入该目录下的两个默认构建。`nohara-house` 检查院落首屏、房间按钮松手切换、取消和拖动。`ocean-shelter` 检查全船首屏、舱室聚焦、GLB 外部贴图和 HUD。模拟器、微信预览、真机及部署后的远程下载待开发者验证。
 
-## 持续检查与独立发布
+## 独立发布产物
 
-**范围**　2026-11-25，GitHub Actions 和静态 Web／微信小游戏发布目录。
+**范围**　2026-11-25，静态 Web／微信小游戏发布目录。
 
-**改动**　CI 调用现有的类型检查、回归、构建报告、无头浏览器及发布命令，保留报告、截图和 `ocean-shelter` 的静态产物。网页发布复用既有入口和相对素材路径，支持静态站点子目录。微信隔离构建复用目标清单、分包设置和原有逐文件发布及回滚，在 `.build/releases/<app-id>/` 下区分 `web`、`wechat` 和 `wechat-remote`。无头检查关闭开发用刷新连接，并增加了大型场景在软件 WebGL 中等待首帧的时间。 [工具用法](../LOCAL_TOOLS.md#独立发布产物)
+**改动**　网页发布复用既有入口和相对素材路径，支持静态站点子目录。微信隔离构建复用目标清单、分包设置和原有逐文件发布及回滚，在 `.build/releases/<app-id>/` 下区分 `web`、`wechat` 和 `wechat-remote`。无头检查关闭开发用刷新连接，并增加了大型场景在软件 WebGL 中等待首帧的时间。 [工具用法](../LOCAL_TOOLS.md#独立发布产物)
 
 **验证**　全仓类型检查和 44 项自动回归通过，覆盖独立产物共存、旧文件清理与发布失败回滚。无头 Edge 在 HTTP 子目录中运行了 `ocean-shelter` 和 `model-viewer` 的静态产物，核对了相对脚本路径、主包 HUD、GLB、外部贴图和 HDR 请求。复测通过原有 `nohara-house` 三视口 HUD、`ocean-shelter` 手机首帧与 `webgl2` 桌面首帧。`ocean-shelter/wechat` 实际文件与审计一致，主包原始文件计 1,407,192 字节，普通分包 9,257,337 字节。`wechat-remote` 保留主包 HUD，运行资源分包省略，本地源资源计 9,257,313 字节。远程构建使用 `example.invalid` 作清单验证。
 
-**交接**　工作区根目录产物仍为 `mad-water-haven`。微信开发者工具导入 `.build/releases/ocean-shelter/wechat/` 后，可验证全船首屏、舱室点按、拖动、贴图和 HUD，并记录实际包分析及冷启动。GitHub 托管运行、微信模拟器、预览和真机验收待完成。
+**交接**　工作区根目录产物仍为 `mad-water-haven`。微信开发者工具导入 `.build/releases/ocean-shelter/wechat/` 后，可验证全船首屏、舱室点按、拖动、贴图和 HUD，并记录实际包分析及冷启动。微信模拟器、预览和真机验收待完成。

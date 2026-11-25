@@ -15,7 +15,7 @@
 | `packagedResources`、`runtimeResources`、`--runtime-url`、GLB 外部贴图 | [主包与运行时资源](framework.md#主包与运行时资源) |
 | `dev:web`、浏览器联调、网页和微信构建隔离 | [单 App 网页联调](framework.md#单-app-网页联调) |
 | `migrate:html`、`test:browser`、HUD 命中区、`build:report` | [本地迁移与验收工具](framework.md#本地迁移与验收工具) |
-| GitHub Actions、`build:web`、`--isolated`、静态站点子目录 | [持续检查与独立发布](framework.md#持续检查与独立发布) |
+| `build:web`、`--isolated`、静态站点子目录 | [独立发布产物](framework.md#独立发布产物) |
 | `AGENTS.md`、代码注释、App 目录、多 Agent、构建产物覆盖、历史基线 | [Agent 工作流审核](framework.md#agent-工作流审核) |
 | 预览 `ENOENT`、`dist/media/pixi-ui-probe.png`、旧图集 | [微信预览读取旧素材](wechat-preview-enoent.md) |
 | 既有模型查看器、Draco、Pixi 初始化、触摸故障和验收基线 | [QA 记录](../QA.md) · [模型与首版交接](../PROJECT_STATUS_AND_AGENT_HANDOFF.md) |

@@ -81,7 +81,7 @@ npm run typecheck
 npm test
 ```
 
-本地工具支持检查和迁移 HTML 原型、无头浏览器首帧、HUD 触摸区域以及微信构建资源。使用 `npm run build:web -- ocean-shelter` 生成可部署网页，或用 `npm run build:target -- ocean-shelter --isolated` 生成可单独导入的微信项目。GitHub Actions 会运行回归并保留报告、截图和海上避难所 Web 构建。 [本地工具用法](docs/LOCAL_TOOLS.md)
+本地工具支持检查和迁移 HTML 原型、无头浏览器首帧、HUD 触摸区域以及微信构建资源。使用 `npm run build:web -- ocean-shelter` 生成可部署网页，或用 `npm run build:target -- ocean-shelter --isolated` 生成可单独导入的微信项目。 [本地工具用法](docs/LOCAL_TOOLS.md)
 
 历史文档中的 `PixiWechatTest` 指本项目。文档示例中的本地目录请替换为你的仓库路径。
 

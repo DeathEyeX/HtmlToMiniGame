@@ -110,9 +110,3 @@ Web 导出沿用目标的 WebGL 模式、入口、浏览器平台适配和素材
 ~~~powershell
 python -m http.server 8080 --bind 127.0.0.1 --directory .build/releases
 ~~~
-
-## GitHub Actions
-
-`Framework checks` 在推送、Pull Request 和手动触发时运行。它安装锁定的 npm 依赖，执行类型检查和自动回归，生成 `ocean-shelter` 的两种资源审计，构建 Web 和独立微信产物，并用 Chromium 检查 WebGL1、WebGL2、手机视口和 HUD 命中区。可在运行结果中下载 `framework-checks` 的审计报告和截图，以及 `ocean-shelter-web` 静态产物。
-
-CI 的微信验证覆盖本地构建和资源清单。微信开发者工具的包分析、扫码预览及真机冷启动按开发流程由开发者验收。 [微信验收流程](AGENT_WORKFLOW.md#5-微信构建与开发者验收)
