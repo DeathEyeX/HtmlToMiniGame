@@ -6,23 +6,38 @@ HtmlToMiniGame 是一套将交互式 Web 原型移植到微信小游戏的 TypeS
 
 ## 快速开始
 
-推荐使用 Node.js 22。在仓库根目录运行以下命令。Windows PowerShell 中可使用 `npm.cmd`。
+### 1. 克隆仓库并安装依赖
+
+先安装 Git 和 Node.js（推荐 22，随附 npm）。然后从 GitHub 克隆并安装项目依赖。
 
 ```sh
+git clone https://github.com/DeathEyeX/HtmlToMiniGame.git
+cd HtmlToMiniGame
 npm ci
+```
+
+`npm ci` 按仓库里的 `package-lock.json` 安装运行和构建依赖，需要能访问 npm 软件源或已有完整缓存。项目的框架和应用源码随仓库提供，Git 子模块初始化可跳过。Windows PowerShell 如果拦截 `npm.ps1`，把下文命令中的 `npm` 换成 `npm.cmd`，例如 `npm.cmd ci`。
+
+### 2. 在浏览器运行
+
+安装依赖后，在仓库根目录运行以下命令。`showcase` 所需素材随仓库提供。
+
+```sh
 npm run build:list
 npm run dev:web -- showcase
 ```
 
-打开终端打印的本地地址。Showcase 首页的蓝色箭头进入配装台，紫色三色按钮进入 20 秒颜色匹配。修改已纳入构建的源码或素材后，页面会自动刷新。新增、删除或重命名素材，以及修改目标配置后，需要重启预览。
+打开终端打印的本地地址。Showcase 首页的蓝色箭头进入配装台，紫色三色按钮进入 20 秒颜色匹配。修改已纳入构建的源码或素材后，页面会自动刷新。新增、删除或重命名素材，以及修改目标配置后，需要重启预览。按 `Ctrl+C` 停止预览。
 
-### 微信小游戏
+### 3. 在微信开发者工具运行
+
+安装依赖后，在仓库根目录构建目标，生成所选应用的代码和素材。
 
 ```sh
 npm run build:target -- showcase
 ```
 
-在微信开发者工具中以「小游戏」模式导入仓库根目录，点击「编译」。切换应用时，将命令中的 `showcase` 换成对应的目标 ID，再重新编译。各目标共用一份 `dist/` 和 `game.json` 中由构建管理的分包配置。网页预览在内存中构建，可以与微信开发者工具并行使用。 [本地联调与微信验收流程](docs/AGENT_WORKFLOW.md#4-本地网页联调)
+在微信开发者工具中以「小游戏」模式导入仓库根目录。若当前账号对仓库配置的 AppID 无权限，导入时选择有权限的小游戏 AppID，再点击「编译」。切换应用时，将命令中的 `showcase` 换成对应的目标 ID，重新构建后再点击「编译」。各目标共用一份 `dist/` 和 `game.json` 中由构建管理的分包配置。网页预览在内存中构建，可以与微信开发者工具并行使用。 [本地联调与微信验收流程](docs/AGENT_WORKFLOW.md#4-本地网页联调)
 
 ## 示例应用
 
@@ -39,7 +54,7 @@ npm run build:target -- showcase
 | `controls` / `pixi-ui` / `webgl2` | 基础输入、Pixi 图集与点按、WebGL2 示例 |
 | `model-viewer` / `showcase-model` / `webgl2-model` | GLB／Draco 模型加载示例，需要单独提供 `model.glb` |
 
-完整列表以 `npm run build:list` 为准。模型目标可在仓库同级的 `WechatAssetServer/` 准备 `model.glb`。浏览器预览优先读取该文件，微信端通过 `modelAsset.ts` 配置的 URL 加载。 [模型联调说明](docs/ARCHITECTURE_AND_USAGE.md#32-启动模型联调)
+完整列表以 `npm run build:list` 为准。运行表中的三个模型示例时，需要另行准备 `model.glb`。网页预览优先读取仓库同级的 `../WechatAssetServer/model.glb`。在微信端运行时，需要启动模型资源服务，并在 `src/game/common/model-viewer/modelAsset.ts` 中填入设备可访问的模型 URL。 [模型联调说明](docs/ARCHITECTURE_AND_USAGE.md#32-启动模型联调)
 
 ## 项目结构与扩展
 
