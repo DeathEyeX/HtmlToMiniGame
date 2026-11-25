@@ -81,6 +81,8 @@ npm run typecheck
 npm test
 ```
 
+本地工具支持检查和迁移 HTML 原型、无头浏览器首帧、HUD 触摸区域以及微信构建资源。 [本地工具用法](docs/LOCAL_TOOLS.md)
+
 历史文档中的 `PixiWechatTest` 指本项目。文档示例中的本地目录请替换为你的仓库路径。
 
 - [框架架构](docs/FRAMEWORK_ARCHITECTURE.md)

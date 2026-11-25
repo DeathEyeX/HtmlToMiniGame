@@ -49,3 +49,13 @@
 **范围**　2026-11-24，工作区和项目的 `AGENTS.md`，以及微信构建交接流程。
 
 **改动**　将新业务的固定框架要求写入工作区指引。「新 App」默认走 `PixiWechatTest` 的独立目标，由 `startGame` 装配 Three.js 场景与 Pixi HUD，通过同一入口联调和构建。开发者负责微信开发者工具内的验收。 [项目约定](../../AGENTS.md#项目约束) · [构建交接](../AGENT_WORKFLOW.md#5-微信构建与开发者验收)
+
+## 本地迁移与验收工具
+
+**范围**　2026-11-25，HTML 原型接入、无头浏览器首帧检查、Pixi HUD 命中区和微信构建报告。
+
+**改动**　`migrate:html` 解析单模块入口和本地依赖，输出带位置的迁移诊断。`--apply` 创建独立 App 和资源目录，入口通过类型检查和内存打包后登记目标。`test:browser` 复用网页预览，在 Three 和 Pixi 提交首帧后采集截图和报告。`nohara-house` 复用房间按钮的命中数据导出布局，检查钩子仅进入无头检查构建。`build:report` 复用构建产物清单，汇总主包、分包和远程资源，检查 GLB／glTF 依赖与可静态识别的资源读取路径。 [工具用法](../LOCAL_TOOLS.md)
+
+**验证**　`npm.cmd run typecheck` 和 42 项自动回归通过。迁移测试从原型生成独立目标并构建，覆盖类型和打包失败后回收生成目录。无头 Edge 验证 `nohara-house` 的小屏、手机、桌面和六个按钮的命中区，`ocean-shelter` 手机首帧与资源加载，以及 `webgl2` 桌面首帧。独立目录中完成 `nohara-house` 和 `ocean-shelter` 的默认微信构建，也用示例 URL 构建了 `ocean-shelter` 远程模式。两种模式都包含主包 HUD，远程构建省略了运行资源分包。
+
+**交接**　工作区根目录产物为 `mad-water-haven`。本次验收产物位于 `.build/tooling-acceptance-38808a3b25/`。微信开发者工具可分别导入该目录下的两个默认构建。`nohara-house` 检查院落首屏、房间按钮松手切换、取消和拖动。`ocean-shelter` 检查全船首屏、舱室聚焦、GLB 外部贴图和 HUD。模拟器、微信预览、真机及部署后的远程下载待开发者验证。

@@ -5,9 +5,12 @@
   "main": "game.js",
   "scripts": {
     "dev:web": "node scripts/dev-web.cjs",
+    "migrate:html": "node scripts/migrate-html.cjs",
     "typecheck": "tsc --noEmit",
     "build:target": "node scripts/build.cjs",
     "build:list": "node scripts/build.cjs --list",
+    "build:report": "node scripts/build-report.cjs",
+    "test:browser": "node scripts/browser-check.cjs",
     "test": "node --test tests/*.test.cjs"
   },
   "keywords": [],
@@ -21,6 +24,8 @@
   "devDependencies": {
     "esbuild": "^0.28.2",
     "minigame-api-typings": "^3.8.22",
+    "parse5": "8.1.1",
+    "playwright-core": "1.64.1",
     "typescript": "^5.9.3"
   }
 }

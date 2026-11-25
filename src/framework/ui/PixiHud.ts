@@ -7,10 +7,23 @@ import 'pixi.js/unsafe-eval';
 import type { HudGesture } from '../platform/WechatPlatform';
 
 type Point = Parameters<HudGesture['move']>[0];
+declare const GAME_BROWSER_CHECK: boolean;
+
+// 使用逻辑视口坐标，与 WechatPlatform 传给 beginGesture 的坐标一致。
+export interface HudControlBounds {
+  id: string;
+  label?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  overlapGroup?: string;
+}
 
 export interface HudView {
   beginGesture(point: Point): HudGesture | undefined;
   resize(width: number, height: number): void;
+  inspectControls?(): readonly HudControlBounds[];
 }
 
 export type CreateHudView = (stage: Container, width: number, height: number) => HudView | Promise<HudView>;
@@ -63,6 +76,9 @@ export async function createHud(
   const stage = new Container();
   const view = await createView?.(stage, width, height);
   return {
+    ...(typeof GAME_BROWSER_CHECK !== 'undefined' && GAME_BROWSER_CHECK && {
+      inspectControls: () => view?.inspectControls?.()
+    }),
     beginGesture(point: Point) {
       return view?.beginGesture(point);
     },

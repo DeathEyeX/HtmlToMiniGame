@@ -53,7 +53,10 @@ function runtimeUrlFor(name, value) {
 
 function targetBuildOptions(name, runtimeUrl) {
   const { entry, renderer } = targetConfig(name);
-  const url = runtimeUrlFor(name, runtimeUrl);
+  return entryBuildOptions(entry, renderer, runtimeUrlFor(name, runtimeUrl));
+}
+
+function entryBuildOptions(entry, renderer, url) {
   return {
     absWorkingDir: root,
     entryPoints: [entry],
@@ -65,6 +68,7 @@ function targetBuildOptions(name, runtimeUrl) {
     external: ['fs', 'path'],
     define: {
       ...platformDefines,
+      GAME_BROWSER_CHECK: 'false',
       GAME_RENDERER: JSON.stringify(renderer),
       GAME_RUNTIME_ASSET_URL: url ? JSON.stringify(url) : 'undefined',
       ...(renderer === 'webgl2' && { WebGL2RenderingContext: 'globalThis.WebGL2RenderingContext' })
@@ -125,15 +129,7 @@ function packageConfig(original, selected) {
   return Buffer.from(JSON.stringify(config, null, 2) + '\n');
 }
 
-function publish(name, bundle, assets, runtimeUrl) {
-  const buildDir = path.join(root, '.build');
-  fs.mkdirSync(buildDir, { recursive: true });
-  if (fs.realpathSync(buildDir) !== buildDir) throw new Error(`构建暂存目录必须位于 ${root}`);
-  const stage = fs.mkdtempSync(path.join(buildDir, 'target-'));
-  const next = path.join(stage, 'next');
-  const previous = path.join(stage, 'previous');
-  const dist = path.join(root, 'dist');
-  const lock = path.join(buildDir, 'publish.lock');
+function targetOutputs(name, bundle, assets, runtimeUrl) {
   const subpackages = targetConfig(name).runtimeResources && !runtimeUrl
     ? [{ name, root: `dist/resources/${name}` }]
     : [];
@@ -143,6 +139,19 @@ function publish(name, bundle, assets, runtimeUrl) {
     const entry = path.join(packageRoot, 'game.js');
     if (!outputs.has(entry)) outputs.set(entry, Buffer.from('// Resource subpackage.\n'));
   }
+  return { outputs, subpackages };
+}
+
+function publish(name, bundle, assets, runtimeUrl) {
+  const buildDir = path.join(root, '.build');
+  fs.mkdirSync(buildDir, { recursive: true });
+  if (fs.realpathSync(buildDir) !== buildDir) throw new Error(`构建暂存目录必须位于 ${root}`);
+  const { outputs, subpackages } = targetOutputs(name, bundle, assets, runtimeUrl);
+  const stage = fs.mkdtempSync(path.join(buildDir, 'target-'));
+  const next = path.join(stage, 'next');
+  const previous = path.join(stage, 'previous');
+  const dist = path.join(root, 'dist');
+  const lock = path.join(buildDir, 'publish.lock');
   let canCleanStage = true;
 
   try {
@@ -247,4 +256,7 @@ if (require.main === module) {
   }
 }
 
-module.exports = { compileTarget, readAssets, platformDefines, targetBuildOptions, listTargetAssets };
+module.exports = {
+  compileTarget, readAssets, platformDefines, targetBuildOptions, entryBuildOptions, listTargetAssets,
+  typecheck, targetConfig, runtimeUrlFor, targetOutputs, packageConfig
+};

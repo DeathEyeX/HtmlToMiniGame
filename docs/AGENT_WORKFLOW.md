@@ -9,6 +9,8 @@
 3. 查 [目标清单](../scripts/targets.json)，用 `npm.cmd run build:list` 核对入口。涉及公共运行时或发布时，再查 [框架架构](FRAMEWORK_ARCHITECTURE.md)、[架构与使用指南](ARCHITECTURE_AND_USAGE.md) 和 [QA 记录](QA.md) 的相关章节。
 4. 选与需求最接近的现有示例。单场景参考 [颜色匹配入口](../src/game/apps/color-match/main.ts)，独立场景加分包资源参考 [海上避难所入口](../src/game/apps/ocean-shelter/main.ts)，应用内多场景切换参考 [Showcase](../src/game/apps/showcase/startGameApp.ts)。
 
+已有 HTML 原型时，可先用 `migrate:html` 生成迁移报告。首帧、HUD 命中区和构建资源也可用对应的本地命令检查。 [本地工具用法](LOCAL_TOOLS.md)
+
 ## 2. 按归属装配代码
 
 | 目录 | 归属 |

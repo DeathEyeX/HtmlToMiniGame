@@ -81,6 +81,8 @@ npm run typecheck
 npm test
 ```
 
+Local tools cover HTML prototype migration, headless browser startup, HUD touch bounds, and WeChat build auditing. [Local tools guide (Chinese)](docs/LOCAL_TOOLS.md)
+
 Earlier documentation refers to this project as `PixiWechatTest`. Substitute your repository path for the local paths shown in those examples.
 
 - [Framework architecture (Chinese)](docs/FRAMEWORK_ARCHITECTURE.md)

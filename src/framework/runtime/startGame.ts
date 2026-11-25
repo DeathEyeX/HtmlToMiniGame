@@ -4,9 +4,17 @@ import {
 import type { OrbitControls } from 'three-platformize/examples/jsm/controls/OrbitControls';
 import { WechatPlatform, type RoutedTouchEvent } from '../platform/WechatPlatform';
 import { loadHud } from '../ui/loadHud';
-import type { CreateHudView } from '../ui/PixiHud';
+import type { CreateHudView, HudControlBounds } from '../ui/PixiHud';
 
 declare const GAME_RENDERER: 'webgl1' | 'webgl2';
+declare const GAME_BROWSER_CHECK: boolean;
+
+type BrowserCheckGlobal = typeof globalThis & {
+  __miniGameBrowserCheck?: {
+    webGLVersion: 1 | 2;
+    inspectControls: () => readonly HudControlBounds[] | undefined;
+  };
+};
 
 interface SceneSetup {
   camera: PerspectiveCamera;
@@ -142,6 +150,15 @@ export async function startGame(
         if (reportFirstPixiFrame) {
           reportFirstPixiFrame = false;
           reportFrame('Pixi');
+        }
+        if (typeof GAME_BROWSER_CHECK !== 'undefined' && GAME_BROWSER_CHECK) {
+          const browser = globalThis as BrowserCheckGlobal;
+          if (!browser.__miniGameBrowserCheck) {
+            // 网页冒烟检查在 Three 和 Pixi 都提交首帧后再截图。
+            const error = gl.getError();
+            if (error !== gl.NO_ERROR) throw new Error(`浏览器首帧 WebGL 错误 ${error}`);
+            browser.__miniGameBrowserCheck = { webGLVersion, inspectControls: () => hud?.inspectControls?.() };
+          }
         }
       } catch (error) {
         hud = undefined;

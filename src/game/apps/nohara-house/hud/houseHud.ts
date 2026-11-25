@@ -11,6 +11,8 @@ const paper = 0xfff9e9;
 const brick = 0xb85541;
 const panelWidth = 360;
 const panelHeight = 164;
+declare const GAME_BROWSER_CHECK: boolean;
+
 const buttonWidth = 106;
 const buttonHeight = 46;
 const buttons = rooms.map((room, index) => ({
@@ -180,6 +182,13 @@ export function createHouseHud(
 
   return {
     resize,
+    ...(typeof GAME_BROWSER_CHECK !== 'undefined' && GAME_BROWSER_CHECK && {
+      inspectControls: () => buttons.map(({ room, x, y }) => ({
+        id: room.id, label: room.label,
+        x: panel.x + x * panel.scale.x, y: panel.y + y * panel.scale.y,
+        width: buttonWidth * panel.scale.x, height: buttonHeight * panel.scale.y
+      }))
+    }),
     beginGesture(point: Point): HudGesture | undefined {
       const room = hit(point);
       if (!room) return;

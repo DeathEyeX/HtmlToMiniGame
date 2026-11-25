@@ -3,7 +3,7 @@ const path = require('node:path');
 const esbuild = require('esbuild');
 const { listTargetAssets, targetBuildOptions } = require('./build.cjs');
 
-function webBuildOptions(name) {
+function webBuildOptions(name, { browserCheck = false } = {}) {
   const options = targetBuildOptions(name);
   const [entry] = options.entryPoints;
   const root = options.absWorkingDir;
@@ -29,7 +29,11 @@ function webBuildOptions(name) {
     ],
     sourcemap: 'linked',
     minify: false,
-    define: { ...options.define, GAME_WEB_MODEL_URL: files.has(modelUrl.slice(1)) ? JSON.stringify(modelUrl) : 'undefined' },
+    define: {
+      ...options.define,
+      GAME_BROWSER_CHECK: JSON.stringify(browserCheck),
+      GAME_WEB_MODEL_URL: files.has(modelUrl.slice(1)) ? JSON.stringify(modelUrl) : 'undefined'
+    },
     plugins: [{
       name: 'web-preview',
       setup(build) {
@@ -49,12 +53,13 @@ function webBuildOptions(name) {
   };
 }
 
-async function start(name) {
-  const context = await esbuild.context(webBuildOptions(name));
+async function serveWebPreview(name, { watch = true, browserCheck = false } = {}) {
+  const context = await esbuild.context(webBuildOptions(name, { browserCheck }));
   try {
-    await context.watch();
+    if (watch) await context.watch();
+    else await context.rebuild();
     const { port } = await context.serve({ host: '127.0.0.1' });
-    console.log(`${name} · http://127.0.0.1:${port}/ (Ctrl+C 停止)`);
+    return { url: `http://127.0.0.1:${port}/`, close: () => context.dispose() };
   } catch (error) {
     await context.dispose();
     throw error;
@@ -67,11 +72,13 @@ if (require.main === module) {
     console.error('用法 npm run dev:web -- <目标名>。运行 npm run build:list 查看可用目标。');
     process.exitCode = 1;
   } else {
-    start(name).catch(error => {
+    serveWebPreview(name).then(({ url }) => {
+      console.log(`${name} · ${url} (Ctrl+C 停止)`);
+    }).catch(error => {
       console.error(error.message);
       process.exitCode = 1;
     });
   }
 }
 
-module.exports = { webBuildOptions };
+module.exports = { webBuildOptions, serveWebPreview };
