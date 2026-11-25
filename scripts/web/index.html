@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>PixiWechatTest 预览</title>
+  <title>HtmlToMiniGame</title>
   <link rel="icon" href="data:,">
   <style>
     html, body { margin: 0; overflow: hidden; background: #dce6ed; }
@@ -20,8 +20,9 @@
 <body>
   <canvas id="game"></canvas>
   <div id="status" role="status" hidden></div>
-  <script>new EventSource('/esbuild').addEventListener('change', () => location.reload());</script>
-  <script src="/platform.js"></script>
-  <script src="/game.js"></script>
+  <!-- web live reload -->
+  <!-- 相对脚本地址让静态产物可以部署到 GitHub Pages 等站点子目录。 -->
+  <script src="./platform.js"></script>
+  <script src="./game.js"></script>
 </body>
 </html>

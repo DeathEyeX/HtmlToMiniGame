@@ -18,7 +18,8 @@ test('web previews serve only the selected app and assets from an isolated in-me
     const { entryPoint, inputs } = result.metafile.outputs[`.build/web/${name}/game.js`];
     assert.equal(entryPoint, `src/game/apps/${name}/main.ts`);
     assert(!Object.keys(inputs).some(file => file.startsWith('src/framework/platform/browser/')));
-    assert.match(files.get('index.html').text, /\/platform\.js[^]*\/game\.js/);
+    assert.match(files.get('index.html').text, /src="\.\/platform\.js"[^]*src="\.\/game\.js"/u);
+    assert.match(files.get('index.html').text, /EventSource/u);
     assert(files.has('platform.js'));
     assert(files.has('game.js.map'));
     assert.deepEqual(

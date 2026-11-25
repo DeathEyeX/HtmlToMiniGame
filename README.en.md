@@ -81,7 +81,7 @@ npm run typecheck
 npm test
 ```
 
-Local tools cover HTML prototype migration, headless browser startup, HUD touch bounds, and WeChat build auditing. [Local tools guide (Chinese)](docs/LOCAL_TOOLS.md)
+Local tools cover HTML prototype migration, headless browser startup, HUD touch bounds, and WeChat build auditing. Run `npm run build:web -- ocean-shelter` for deployable web files or `npm run build:target -- ocean-shelter --isolated` for a separately importable WeChat project. GitHub Actions runs regression checks and retains reports, screenshots, and the Ocean Shelter web build. [Local tools guide (Chinese)](docs/LOCAL_TOOLS.md)
 
 Earlier documentation refers to this project as `PixiWechatTest`. Substitute your repository path for the local paths shown in those examples.
 

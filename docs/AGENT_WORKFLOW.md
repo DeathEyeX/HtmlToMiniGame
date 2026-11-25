@@ -73,7 +73,7 @@ npm.cmd run dev:web -- nohara-house
 
 ## 5. 微信构建与开发者验收
 
-同一工作区的各个目标会更新同一份 `dist/game.bundle.js`、`dist/resources/` 和 `game.json` 中受构建管理的分包声明。多 Agent 共用工作区时，由一个 Agent 负责 `build:target` 并向开发者交接产物，其余 Agent 可以并行运行类型检查、自动测试和代码审查。需要同时联调不同目标时，分别在独立 Git 工作树构建，由开发者在微信开发者工具中导入各自的工程根目录。
+默认 `build:target` 更新同一工作区的 `dist/game.bundle.js`、`dist/resources/` 和 `game.json` 中受构建管理的分包声明。多 Agent 共用工作区时，由一个 Agent 负责默认构建和交接，其余 Agent 可并行运行类型检查、自动测试和代码审查。交付多个目标或比较资源模式时，可加 `--isolated`，由开发者在微信开发者工具中分别导入生成的工程目录。 [独立产物说明](LOCAL_TOOLS.md#独立发布产物)
 
 代码或素材改动后，运行以下检查。把示例中的 `ocean-shelter` 换成本次目标。
 

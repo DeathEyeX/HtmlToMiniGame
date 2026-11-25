@@ -1,7 +1,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { parseArgs } = require('node:util');
 const { buildSync } = require('esbuild');
 const targets = require('./targets.json');
+const { writeRelease, publishFiles, outputEntries, pruneEmptyDirectories } = require('./release-output.cjs');
 
 const root = fs.realpathSync(path.resolve(__dirname, '..'));
 const platformDefines = Object.freeze({
@@ -142,110 +144,84 @@ function targetOutputs(name, bundle, assets, runtimeUrl) {
   return { outputs, subpackages };
 }
 
+function exportWechat(name, bundle, assets, runtimeUrl) {
+  const { outputs, subpackages } = targetOutputs(name, bundle, assets, runtimeUrl);
+  const config = packageConfig(fs.readFileSync(path.join(root, 'game.json')), subpackages);
+  outputs.set('game.json', config);
+  for (const file of ['game.js', 'project.config.json']) outputs.set(file, fs.readFileSync(path.join(root, file)));
+  // 手动声明的分包沿用原项目的路径。仅复制 game.json 明确引用的文件。
+  for (const item of JSON.parse(config).subpackages ?? []) {
+    if (subpackages.some(pkg => pkg.root === item.root)) continue;
+    const source = path.resolve(root, item.root);
+    if (path.isAbsolute(item.root) || !source.startsWith(root + path.sep) || fs.realpathSync(source) !== source) {
+      throw new Error(`微信分包路径须位于当前仓库 ${item.root}`);
+    }
+    const stat = fs.lstatSync(source);
+    const entries = stat.isDirectory() ? fs.readdirSync(source, { recursive: true, withFileTypes: true }) : [];
+    if (entries.some(entry => !entry.isDirectory() && !entry.isFile()) || (!stat.isFile() && !stat.isDirectory())) {
+      throw new Error(`微信分包须为常规文件或目录 ${item.root}`);
+    }
+    const files = stat.isFile() ? [source] : entries.filter(entry => entry.isFile()).map(entry => path.join(entry.parentPath, entry.name));
+    for (const file of files) {
+      const relative = path.relative(root, file);
+      if (outputs.has(relative)) throw new Error(`微信分包覆盖生成文件 ${relative}`);
+      outputs.set(relative, fs.readFileSync(file));
+    }
+  }
+  return writeRelease(name, runtimeUrl ? 'wechat-remote' : 'wechat', outputs);
+}
+
 function publish(name, bundle, assets, runtimeUrl) {
   const buildDir = path.join(root, '.build');
   fs.mkdirSync(buildDir, { recursive: true });
   if (fs.realpathSync(buildDir) !== buildDir) throw new Error(`构建暂存目录必须位于 ${root}`);
   const { outputs, subpackages } = targetOutputs(name, bundle, assets, runtimeUrl);
-  const stage = fs.mkdtempSync(path.join(buildDir, 'target-'));
-  const next = path.join(stage, 'next');
-  const previous = path.join(stage, 'previous');
   const dist = path.join(root, 'dist');
   const lock = path.join(buildDir, 'publish.lock');
-  let canCleanStage = true;
-
+  fs.mkdirSync(lock);
   try {
-    fs.mkdirSync(lock);
-    try {
-      fs.mkdirSync(dist, { recursive: true });
-      if (fs.realpathSync(dist) !== dist) throw new Error(`产物目录必须位于 ${root}`);
-      const entries = fs.readdirSync(dist, { recursive: true, withFileTypes: true });
-      const relative = (entry) => path.relative(root, path.join(entry.parentPath, entry.name));
-      if (entries.some((entry) => !entry.isFile() && !entry.isDirectory())) {
-        throw new Error('dist 产物目录仅支持常规文件和目录。');
-      }
-      const existing = new Set(entries.filter((entry) => entry.isFile()).map(relative));
-      const stale = [...existing].filter((file) => !outputs.has(file));
-      const gameConfig = path.join(root, 'game.json');
-      if (!fs.lstatSync(gameConfig).isFile()) throw new Error('game.json 必须为常规文件。');
-      outputs.set('game.json', packageConfig(fs.readFileSync(gameConfig), subpackages));
-      existing.add('game.json');
-      const applied = [];
-
-      // Keep the project tool's dist directory in place. Replace its generated files atomically.
-      try {
-        for (const file of [...outputs.keys(), ...stale]) {
-          const output = path.join(root, file);
-          const bytes = outputs.get(file);
-          if (existing.has(file)) {
-            const original = fs.readFileSync(output);
-            if (bytes?.equals(original)) continue;
-            const backup = path.join(previous, file);
-            fs.mkdirSync(path.dirname(backup), { recursive: true });
-            fs.writeFileSync(backup, original);
-          }
-          if (bytes) {
-            fs.mkdirSync(path.dirname(output), { recursive: true });
-            fs.writeFileSync(next, bytes);
-            fs.renameSync(next, output);
-          } else {
-            fs.unlinkSync(output);
-          }
-          applied.push(file);
-        }
-      } catch (error) {
-        let restoreError;
-        for (const file of applied.reverse()) {
-          const output = path.join(root, file);
-          try {
-            if (existing.has(file)) fs.renameSync(path.join(previous, file), output);
-            else fs.unlinkSync(output);
-          } catch (failure) {
-            restoreError ??= failure;
-          }
-        }
-        if (restoreError) {
-          canCleanStage = false;
-          throw new Error(`恢复上一份构建失败，备份位于 ${previous}。${restoreError.message}`);
-        }
-        throw error;
-      }
-
-      for (const dir of entries.filter((entry) => entry.isDirectory()).map(relative).sort((a, b) => b.length - a.length)) {
-        try {
-          fs.rmdirSync(path.join(root, dir));
-        } catch (error) {
-          if (!['ENOTEMPTY', 'EBUSY', 'EPERM', 'EACCES', 'ENOENT'].includes(error.code)) throw error;
-        }
-      }
-    } finally {
-      fs.rmdirSync(lock);
-    }
+    fs.mkdirSync(dist, { recursive: true });
+    if (fs.realpathSync(dist) !== dist) throw new Error(`产物目录必须位于 ${root}`);
+    const entries = outputEntries(dist);
+    const existing = new Set(entries.filter(entry => entry.isFile())
+      .map(entry => path.relative(root, path.join(entry.parentPath, entry.name))));
+    const gameConfig = path.join(root, 'game.json');
+    if (!fs.lstatSync(gameConfig).isFile()) throw new Error('game.json 必须为常规文件。');
+    outputs.set('game.json', packageConfig(fs.readFileSync(gameConfig), subpackages));
+    existing.add('game.json');
+    publishFiles(root, buildDir, outputs, existing);
+    pruneEmptyDirectories(entries);
   } finally {
-    if (canCleanStage && path.dirname(stage) === buildDir && path.basename(stage).startsWith('target-')) {
-      fs.rmSync(stage, { recursive: true, force: true, maxRetries: 2 });
-    }
+    fs.rmdirSync(lock);
   }
 }
 
 if (require.main === module) {
-  const [name, flag, value, ...extra] = process.argv.slice(2);
   try {
-    if (flag !== undefined && (name === '--list' || flag !== '--runtime-url' || !value || extra.length)) {
-      throw new Error('用法 npm run build:target -- <目标名> [--runtime-url <资源目录 URL>]');
+    const { values, positionals: [name, ...extra] } = parseArgs({
+      allowPositionals: true,
+      options: { list: { type: 'boolean' }, isolated: { type: 'boolean' }, 'runtime-url': { type: 'string' } }
+    });
+    if (extra.length || (values.list && (name || values.isolated || values['runtime-url'] !== undefined))) {
+      throw new Error('用法 npm run build:target -- <目标名> [--isolated] [--runtime-url <资源目录 URL>]');
     }
-    if (name === '--list') {
+    if (values.list) {
       for (const name of Object.keys(targets)) {
         const { entry, renderer } = targetConfig(name);
         console.log(`${name.padEnd(16)} ${renderer} · ${entry}`);
       }
     } else {
       const { entry, renderer } = targetConfig(name);
-      const runtimeUrl = runtimeUrlFor(name, value);
+      const runtimeUrl = runtimeUrlFor(name, values['runtime-url']);
       const assets = readAssets(name, runtimeUrl);
       typecheck(entry);
       const { outputFiles: [bundle], metafile } = compileTarget(name, runtimeUrl);
-      publish(name, bundle.contents, assets, runtimeUrl);
+      if (values.isolated) {
+        const destination = exportWechat(name, bundle.contents, assets, runtimeUrl);
+        console.log(`微信产物 · ${destination}`);
+      } else {
+        publish(name, bundle.contents, assets, runtimeUrl);
+      }
       const inputs = Object.keys(metafile.outputs['dist/game.bundle.js'].inputs).length;
       console.log(`${name} · ${renderer} · ${entry}\ndist/game.bundle.js ${bundle.contents.length} bytes · ${inputs} modules`);
       for (const { file, bytes } of assets) console.log(`dist/resources/${file} ${bytes.length} bytes`);

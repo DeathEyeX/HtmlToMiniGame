@@ -8,6 +8,7 @@
     "migrate:html": "node scripts/migrate-html.cjs",
     "typecheck": "tsc --noEmit",
     "build:target": "node scripts/build.cjs",
+    "build:web": "node scripts/build-web.cjs",
     "build:list": "node scripts/build.cjs --list",
     "build:report": "node scripts/build-report.cjs",
     "test:browser": "node scripts/browser-check.cjs",

@@ -88,3 +88,31 @@ npm.cmd run build:report -- ocean-shelter --runtime-url https://assets.example.c
 报告会检查可静态识别的 `loadImage`、`readBinary` 调用和直接方法别名，也会读取 GLB／glTF 的 JSON 检查外部图片和缓冲区路径。运行时拼接的参数和外部 URL 会列为待核对项。远程模式检查本地源目录的文件清单。已部署站点上的资源仍通过真机加载验证。
 
 构建报告在内存中生成，`build:target` 用于实际输出小游戏项目。
+
+## 独立发布产物
+
+~~~powershell
+npm.cmd run build:web -- ocean-shelter
+npm.cmd run build:target -- ocean-shelter --isolated
+npm.cmd run build:target -- ocean-shelter --isolated --runtime-url https://assets.example.com/ocean-shelter/v1/
+~~~
+
+| 命令 | 输出目录 | 使用方式 |
+| --- | --- | --- |
+| `build:web` | `.build/releases/<app-id>/web/` | 用 HTTP 访问该目录的 `index.html`。保持目录结构，可部署到静态站点的子目录。 |
+| `build:target -- <app-id> --isolated` | `.build/releases/<app-id>/wechat/` | 在微信开发者工具中按小游戏模式导入此目录，使用默认资源模式。 |
+| `build:target -- <app-id> --isolated --runtime-url <URL>` | `.build/releases/<app-id>/wechat-remote/` | 导入独立的远程资源构建，使用同一主包素材和已部署的运行资源。 |
+
+各目录可以并存。同一 App、同一模式重新构建时，目录内文件按本次生成清单更新。独立微信项目使用仓库的 `project.config.json`，开发者在导入时可选择有权限的 AppID。日常联调可继续用 `dev:web` 和默认的 `build:target`。
+
+Web 导出沿用目标的 WebGL 模式、入口、浏览器平台适配和素材清单。`model-viewer`、`showcase-model` 和 `webgl2-model` 需要同级 `WechatAssetServer/model.glb`，导出时将模型一并打包。示例用下列命令在本机检查子目录部署，访问 `http://127.0.0.1:8080/ocean-shelter/web/`。
+
+~~~powershell
+python -m http.server 8080 --bind 127.0.0.1 --directory .build/releases
+~~~
+
+## GitHub Actions
+
+`Framework checks` 在推送、Pull Request 和手动触发时运行。它安装锁定的 npm 依赖，执行类型检查和自动回归，生成 `ocean-shelter` 的两种资源审计，构建 Web 和独立微信产物，并用 Chromium 检查 WebGL1、WebGL2、手机视口和 HUD 命中区。可在运行结果中下载 `framework-checks` 的审计报告和截图，以及 `ocean-shelter-web` 静态产物。
+
+CI 的微信验证覆盖本地构建和资源清单。微信开发者工具的包分析、扫码预览及真机冷启动按开发流程由开发者验收。 [微信验收流程](AGENT_WORKFLOW.md#5-微信构建与开发者验收)

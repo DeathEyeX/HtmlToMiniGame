@@ -42,7 +42,8 @@ async function checkDevice(browser, url, name, dir, checkHud) {
     });
     try {
       await page.goto(url, { waitUntil: 'load', timeout: 20000 });
-      await page.waitForFunction(() => Boolean(globalThis.__miniGameBrowserCheck), undefined, { timeout: 20000 });
+      // CI 的软件 WebGL 需要时间加载模型和纹理。轮询不必等下一帧开始。
+      await page.waitForFunction(() => Boolean(globalThis.__miniGameBrowserCheck), undefined, { polling: 100, timeout: 45000 });
       report.webGLVersion = await page.evaluate(() => globalThis.__miniGameBrowserCheck.webGLVersion);
       if (checkHud) {
         const controls = await page.evaluate(() => globalThis.__miniGameBrowserCheck.inspectControls());
