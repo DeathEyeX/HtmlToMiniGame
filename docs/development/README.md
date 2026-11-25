@@ -8,7 +8,9 @@
 | `drift-era`、像素风海上庇护所、多层通行、联络任务 | [漂流纪元](drift-era.md) |
 | `tidal-harbor`、滑动环绕、卡通像素材质、水线遗迹、海底城区 | [潮汐浮城](tidal-harbor.md) |
 | `saltwind-haven`、模块化浮台、动态海面、七个功能区、净屏取景 | [盐风庇护所](saltwind-haven.md) |
+| `mad-water-haven`、疯狂水世界、三层住宅、水下避难所、潜水镜头、区域聚焦 | [疯狂水世界风海上庇护所](mad-water-haven.md) |
 | `nohara-house`、野原家、卡通房屋、房间切换、拖动旋转、小新模型、中文图集 | [野原家的小屋](nohara-house.md) |
+| `cyber-beast`、霓虹异骸、裂隙猎犬、低模、原地踏步、旋转展台 | [赛博生物展厅](cyber-beast.md) |
 | `startGame`、`touchcancel`、OrbitControls、阴影和渲染钩子 | [共享场景运行时](framework.md#共享场景运行时) |
 | `packagedResources`、`runtimeResources`、`--runtime-url`、GLB 外部贴图 | [主包与运行时资源](framework.md#主包与运行时资源) |
 | `dev:web`、浏览器联调、网页和微信构建隔离 | [单 App 网页联调](framework.md#单-app-网页联调) |

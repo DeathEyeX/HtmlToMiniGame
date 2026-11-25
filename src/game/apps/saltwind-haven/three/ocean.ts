@@ -83,6 +83,8 @@ export function createOcean(decks: Waterline[], floating: Waterline[]) {
       deckDistance: { value: deckDistance }, noiseField: { value: noiseField }, deckBounds: { value: new THREE.Vector2(...deckBounds) }
     },
     defines: { FOOTPRINTS: floating.length },
+    transparent: true,
+    depthWrite: false,
     vertexShader: `
       ${waveField}
       varying vec3 vWorld;
@@ -136,15 +138,26 @@ export function createOcean(decks: Waterline[], floating: Waterline[]) {
         vec3 n = normalize(vec3(-large.x - ripples.x, 1.0, -large.y - ripples.y));
         float basin = exp(-dot(p * vec2(.045, .049), p * vec2(.045, .049))) * .83;
         float layer = clamp(.16 + basin + .24 * (current - .5) + large.z * .37, 0.0, 1.0);
-        vec3 water = mix(vec3(.009, .115, .240), vec3(.012, .49, .50), layer);
+        // 卡通鲜亮蓝绿色：浅水亮青蓝，深水深蓝，对应疯狂水世界广告色调。
+        vec3 water = mix(vec3(.035, .22, .62), vec3(.06, .72, .82), layer);
 
-        float fresnel = pow(1.0 - max(dot(n, viewer), 0.0), 4.0);
+        float fresnel = pow(1.0 - max(dot(n, viewer), 0.0), 3.5);
         vec3 sun = normalize(vec3(-.54, .75, -.40));
         float shiny = max(dot(n, normalize(sun + viewer)), 0.0);
-        float glitter = pow(shiny, 212.0) * smoothstep(.39, .87, crossFlow) * .31 + pow(shiny, 49.0) * .047;
+        // 卡通高光：单个亮斑，硬边，像插画里的水面反光。
+        float glitter = step(.965, pow(shiny, 90.0) * smoothstep(.30, .80, crossFlow)) * .90
+                      + pow(shiny, 42.0) * .065;
         water *= .88 + .22 * dot(n, sun);
-        water = mix(water, vec3(.27, .64, .74), min(.86, fresnel * .82));
-        water += vec3(1.0, .89, .63) * glitter * distanceFade;
+        // 菲涅耳反射用明亮天蓝色，让水面看起来反光通透。
+        water = mix(water, vec3(.52, .88, .98), min(.88, fresnel * .86));
+        water += vec3(1.0, .95, .80) * glitter * distanceFade;
+
+        // 卡通风格波纹线：在水面叠加一组细长的白色线条。
+        float rippleLine = sin(dot(p, vec2(.62, 1.80)) * 3.2 + current * 8.0 - time * 1.1) * .5 + .5;
+        float rippleLine2 = sin(dot(p, vec2(-1.40, .75)) * 2.8 + swirls * 6.0 - time * .85) * .5 + .5;
+        float lines = smoothstep(.82, .97, rippleLine) * smoothstep(.40, .70, crossFlow) * .28
+                    + smoothstep(.85, .98, rippleLine2) * smoothstep(.35, .65, current) * .18;
+        water += vec3(.9, .97, 1.0) * lines * distanceFade;
 
         float filaments = sin(dot(p, vec2(.52, 1.61)) + current * 7.2 + swirls * 2.6 - time * .73);
         float glints = smoothstep(.88, .995, filaments) * smoothstep(.46, .79, swirls) * smoothstep(.17, .72, crossFlow);
@@ -153,17 +166,22 @@ export function createOcean(decks: Waterline[], floating: Waterline[]) {
         if (abs(p.x) < 19.0 && abs(p.y) < 17.0) {
           float edge = distanceToWaterline(p);
           float shade = 1.0 - smoothstep(-.34, 1.38, edge);
-          water *= 1.0 - shade * .43;
+          water *= 1.0 - shade * .48;
           float churn = noise(p * 2.5 + vec2(time * .21, -time * .14));
           float spread = max(edge, 0.0) + (swirls - .55) * .55;
           float crest = .5 + .5 * cos(spread * 13.8 - time * 2.0 + churn * 1.9);
-          float lip = (1.0 - smoothstep(.10, .55, spread)) * smoothstep(.32, .72, churn);
-          float wake = smoothstep(.73, .98, crest) * smoothstep(.39, .83, churn) * (1.0 - smoothstep(.18, 1.55, spread));
-          float foam = max(lip * .69, wake * .77) * smoothstep(-.38, .03, edge);
-          water = mix(water, vec3(.72, .94, .90), foam);
+          // 卡通风格泡沫：更宽更白，硬边，对应插画里平台周围的浪花。
+          float lip = (1.0 - smoothstep(.06, .52, spread)) * smoothstep(.25, .62, churn);
+          float wake = smoothstep(.65, .96, crest) * smoothstep(.32, .76, churn) * (1.0 - smoothstep(.14, 1.60, spread));
+          float foam = max(lip * .92, wake * .95) * smoothstep(-.45, .05, edge);
+          water = mix(water, vec3(.92, .98, 1.0), foam);
         }
-        water = mix(vec3(.27, .60, .70), water, 1.0 - smoothstep(105.0, 233.0, length(p)));
-        gl_FragColor = vec4(water, 1.0);
+        // 远海渐变与卡通蓝色一致。
+        water = mix(vec3(.20, .56, .82), water, 1.0 - smoothstep(105.0, 233.0, length(p)));
+        // 卡通半透明水面：近处更透，让水下桩柱和珊瑚可见。
+        float proximity = 1.0 - smoothstep(0.0, 28.0, length(p));
+        float alpha = mix(0.84, 0.72, proximity);
+        gl_FragColor = vec4(water, alpha);
         #include <encodings_fragment>
       }
     `

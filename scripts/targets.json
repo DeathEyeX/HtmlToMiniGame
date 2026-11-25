@@ -28,5 +28,9 @@
   "saltwind-haven": {
     "entry": "src/game/apps/saltwind-haven/main.ts",
     "packagedResources": "saltwind-haven/packaged"
+  },
+  "mad-water-haven": {
+    "entry": "src/game/apps/mad-water-haven/main.ts",
+    "packagedResources": "mad-water-haven/packaged"
   }
 }
