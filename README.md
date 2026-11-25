@@ -51,6 +51,7 @@ npm run build:target -- showcase
 | `tidal-harbor` | 可在海上庇护所、水线和海底之间切换的 3D 场景 |
 | `saltwind-haven` | 模块化浮台、动态海面和功能区聚焦 |
 | `mad-water-haven` | 海上住宅和水下避难所，支持潜水观察 |
+| `war-outpost` | 从 HTML 迁移的 3D 前哨站，支持视角切换、旋转、线框及触摸缩放 |
 | `controls` / `pixi-ui` / `webgl2` | 基础输入、Pixi 图集与点按、WebGL2 示例 |
 | `model-viewer` / `showcase-model` / `webgl2-model` | GLB／Draco 模型加载示例，需要单独提供 `model.glb` |
 
@@ -81,7 +82,7 @@ npm run typecheck
 npm test
 ```
 
-本地工具支持检查和迁移 HTML 原型、无头浏览器首帧、HUD 触摸区域以及微信构建资源。使用 `npm run build:web -- ocean-shelter` 生成可部署网页，或用 `npm run build:target -- ocean-shelter --isolated` 生成可单独导入的微信项目。 [本地工具用法](docs/LOCAL_TOOLS.md)
+本地工具支持检查和迁移 HTML 原型、无头浏览器首帧、HUD 触摸区域以及微信构建资源。需要手工适配的原型可以用 `migrate:html` 的 `--scaffold` 参数生成可构建的 App 骨架。使用 `npm run build:web -- ocean-shelter` 生成可部署网页，或用 `npm run build:target -- ocean-shelter --isolated` 生成可单独导入的微信项目。 [本地工具用法](docs/LOCAL_TOOLS.md)
 
 历史文档中的 `PixiWechatTest` 指本项目。文档示例中的本地目录请替换为你的仓库路径。
 

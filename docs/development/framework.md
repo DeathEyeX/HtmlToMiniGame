@@ -58,6 +58,8 @@
 
 **验证**　`npm.cmd run typecheck` 和 42 项自动回归通过。迁移测试从原型生成独立目标并构建，覆盖类型和打包失败后回收生成目录。无头 Edge 验证 `nohara-house` 的小屏、手机、桌面和六个按钮的命中区，`ocean-shelter` 手机首帧与资源加载，以及 `webgl2` 桌面首帧。独立目录中完成 `nohara-house` 和 `ocean-shelter` 的默认微信构建，也用示例 URL 构建了 `ocean-shelter` 远程模式。两种模式都包含主包 HUD，远程构建省略了运行资源分包。
 
+**HTML 迁移工具更新（2026-11-25）**　迁移 `war-outpost.html` 时确认原型使用 Three.js r170，框架依赖 r133。诊断增加兼容分组、可识别的缺失导出、2D Canvas、视口全局变量和 DOM 输入位置。相同 revision 的固定 jsDelivr 核心模块可映射到本地。新增 `--scaffold`，为手工迁移生成独立 App，沿用类型检查、内存打包及目标登记。回归覆盖 CDN 版本差异、同名局部变量、TypeScript 类型导入、诊断失败时拒绝生成，以及骨架资源复制和微信构建。 [工具用法](../LOCAL_TOOLS.md#从-html-原型迁移) · [迁移实例](war-outpost.md)
+
 **交接**　工作区根目录产物为 `mad-water-haven`。本次验收产物位于 `.build/tooling-acceptance-38808a3b25/`。微信开发者工具可分别导入该目录下的两个默认构建。`nohara-house` 检查院落首屏、房间按钮松手切换、取消和拖动。`ocean-shelter` 检查全船首屏、舱室聚焦、GLB 外部贴图和 HUD。模拟器、微信预览、真机及部署后的远程下载待开发者验证。
 
 ## 独立发布产物

@@ -2,14 +2,17 @@
 
 ## 从 HTML 原型迁移
 
-在仓库根目录执行。默认输出 JSON 迁移报告。报告包含脚本入口、静态素材引用、模块清单，以及需要处理的文件和行号。
+在仓库根目录执行。默认输出 JSON 迁移报告。报告包含脚本入口、静态素材引用、模块清单和带文件行列的诊断。 `summary` 按界面、输入、渲染、贴图等归并问题，`rewrites` 列出匹配到的模块名改写，`canApply` 表示原型是否通过生成前的静态诊断。
 
 ~~~powershell
 npm.cmd run migrate:html -- D:/Prototypes/my-scene/index.html
 npm.cmd run migrate:html -- D:/Prototypes/my-scene/index.html --config D:/Prototypes/my-scene/migration.json --apply
+npm.cmd run migrate:html -- D:/Prototypes/my-scene/index.html --config D:/Prototypes/my-scene/migration.json --scaffold
 ~~~
 
-自动生成适用于一个 `<script type="module">` 入口。脚本可以内联 JavaScript，或引用同目录下的 JS、MJS 或 TS 模块。入口使用 `export function createScene` 声明场景工厂。框架依次提供场景、渲染器和 Canvas，工厂返回至少包含 `camera` 和 `update(delta)` 的对象，也可返回 `resize`、`touch` 和 `dispose`。工具会保留可解析的本地模块及相对路径，并映射 `three` 和 Three.js addons 的导入。类型检查会提示目标 Three.js 版本的 API 差异。
+自动生成适用于一个 `<script type="module">` 入口。脚本可以内联 JavaScript，或引用原型目录下的 JS、MJS 或 TS 模块。入口使用 `export function createScene` 声明场景工厂。框架依次提供场景、渲染器和 Canvas，工厂返回至少包含 `camera` 和 `update(delta)` 的对象，也可返回 `resize`、`touch` 和 `dispose`。工具会保留可解析的本地模块及相对路径，并映射 `three`、Three.js addons 和与本地 revision 相同的固定版本 jsDelivr 核心模块导入。CDN revision 差异和可静态识别的缺失运行时导出会阻止生成，入口提交时还会通过类型检查和打包。
+
+给 AI 生成新原型时，可以直接提供下面的入口样式。将场景更新放进 `update`，触摸交互放进 `touch`，Pixi 界面按框架的 HUD 装配约定实现。
 
 ~~~html
 <!doctype html>
@@ -33,7 +36,7 @@ npm.cmd run migrate:html -- D:/Prototypes/my-scene/index.html --config D:/Protot
 </script>
 ~~~
 
-CSS 会出现在报告中，HTML 控件、浏览器专属调用和额外渲染器会报告迁移错误。先将控件适配到 Pixi HUD，并把帧循环与输入交给框架。生成后可以在 App 的 `hud/` 中接入已有的 HUD 装配方式。 [App 装配约定](AGENT_WORKFLOW.md#2-按归属装配代码)
+CSS 会出现在报告中。HTML 控件、浏览器专属调用和额外渲染器会报告迁移错误。把控件适配到 Pixi HUD，把帧循环和输入交给框架。遇到程序贴图时，在场景工厂中分配 2D Canvas 并核对目标版本的纹理编码。 [App 装配约定](AGENT_WORKFLOW.md#2-按归属装配代码) · [前线前哨站迁移记录](development/war-outpost.md)
 
 可选配置文件包含以下字段。目录相对于原型 HTML，资源路径会保留。
 
@@ -49,6 +52,8 @@ CSS 会出现在报告中，HTML 控件、浏览器专属调用和额外渲染�
 指定素材目录后，第四个工厂参数会提供相应的 `resources.packaged` 或 `resources.runtime` 加载器，它们支持 `loadImage` 和 `readBinary`。运行时资源默认走微信分包，使用现有的 `--runtime-url` 构建参数可改走远程地址。未提供 ID 时，从 HTML 文件名推导，`index.html` 使用所在目录名。
 
 `--apply` 生成独立 App 并在 `scripts/targets.json` 登记。入口通过类型检查和内存打包后才提交登记。若目标已存在，换一个 ID 后重新执行。生成后可直接联调和构建。
+
+`--scaffold` 面向需要手工适配的原型。它保留诊断并生成带占位立方体的独立 App，包含 `three/scene.ts` 的场景生命周期和 `hud/prototypeHud.ts` 的 HUD 入口。按报告把原型业务代码接入骨架；明确声明的素材目录按配置复制。骨架通过同样的类型检查和内存打包后登记，报告用 `scaffold: true` 标记成功。`canApply` 仍表示原始 HTML 的诊断结果。使用新的 App ID，`--scaffold` 和 `--apply` 任选其一。
 
 ~~~powershell
 npm.cmd run dev:web -- my-scene

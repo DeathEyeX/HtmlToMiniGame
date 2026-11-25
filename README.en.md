@@ -51,6 +51,7 @@ Import the repository root into WeChat DevTools as a Mini Game project. If your 
 | `tidal-harbor` | 3D scene with floating shelter, waterline, and seabed views |
 | `saltwind-haven` | Modular floating platforms, animated water, and camera focus points for each area |
 | `mad-water-haven` | Floating home with a submerged shelter and a dive view |
+| `war-outpost` | 3D outpost ported from HTML, with camera presets, rotation, wireframe mode, and pinch zoom |
 | `controls` / `pixi-ui` / `webgl2` | Basic input, PixiJS texture atlases and taps, and WebGL2 examples |
 | `model-viewer` / `showcase-model` / `webgl2-model` | GLB/Draco model-loading examples that require a separately supplied `model.glb` |
 
@@ -81,7 +82,7 @@ npm run typecheck
 npm test
 ```
 
-Local tools cover HTML prototype migration, headless browser startup, HUD touch bounds, and WeChat build auditing. Run `npm run build:web -- ocean-shelter` for deployable web files or `npm run build:target -- ocean-shelter --isolated` for a separately importable WeChat project. [Local tools guide (Chinese)](docs/LOCAL_TOOLS.md)
+Local tools cover HTML prototype migration, headless browser startup, HUD touch bounds, and WeChat build auditing. Use the `migrate:html` script with `--scaffold` to create a buildable starting point for a prototype that needs manual adaptation. Run `npm run build:web -- ocean-shelter` for deployable web files or `npm run build:target -- ocean-shelter --isolated` for a separately importable WeChat project. [Local tools guide (Chinese)](docs/LOCAL_TOOLS.md)
 
 Earlier documentation refers to this project as `PixiWechatTest`. Substitute your repository path for the local paths shown in those examples.
 

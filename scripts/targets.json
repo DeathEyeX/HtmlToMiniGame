@@ -32,5 +32,9 @@
   "mad-water-haven": {
     "entry": "src/game/apps/mad-water-haven/main.ts",
     "packagedResources": "mad-water-haven/packaged"
+  },
+  "war-outpost": {
+    "entry": "src/game/apps/war-outpost/main.ts",
+    "packagedResources": "war-outpost/packaged"
   }
 }

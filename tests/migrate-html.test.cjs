@@ -33,6 +33,49 @@ test('HTML migration diagnoses markup, remote scripts and browser code at source
   assert.match(inline.modules.get(inline.entry).text, /^export function createScene/u);
 });
 
+test('HTML migration checks Three revisions and browser bindings without executing a prototype', async t => {
+  const dir = temporaryDirectory(t);
+  const file = path.join(dir, 'prototype.html');
+  const revision = require('three-platformize').REVISION;
+  const cdn = number => `https://cdn.jsdelivr.net/npm/three@0.${number}.0/build/three.module.js`;
+  fs.writeFileSync(file, `<script type="module">
+const T = await import('${cdn(Number(revision) + 37)}');
+T.SRGBColorSpace;
+document.createElement('canvas');
+addEventListener('resize', () => innerWidth);
+node.addEventListener('pointerdown', () => devicePixelRatio);
+node.addEventListener('change', () => {});
+function local(T, innerWidth) { return T.SRGBColorSpace ?? innerWidth; }
+throw new Error('untrusted module must not execute');
+export function createScene() {}
+</script>`);
+  const report = await scanPrototype(file);
+  assert.deepEqual(report.issues.map(({ code, category, line }) => [code, category, line]), [
+    ['THREE_VERSION', 'three', 2], ['THREE_API', 'three', 3], ['CANVAS_CREATION', 'texture', 4],
+    ['INPUT_API', 'input', 5], ['VIEWPORT_API', 'rendering', 5],
+    ['INPUT_API', 'input', 6], ['VIEWPORT_API', 'rendering', 6]
+  ]);
+  assert.deepEqual(report.rewrites, []);
+
+  fs.writeFileSync(file, `<script type="module">
+import { PerspectiveCamera } from '${cdn(revision)}';
+export function createScene() { return { camera: new PerspectiveCamera(), update() {} }; }
+</script>`);
+  const mapped = await scanPrototype(file);
+  assert.deepEqual(mapped.issues, []);
+  assert.equal(mapped.rewrites[0].to, 'three-platformize');
+  assert.match(mapped.modules.get(mapped.entry).text, /from "three-platformize"/u);
+
+  fs.mkdirSync(path.join(dir, 'three'));
+  fs.writeFileSync(file, '<script type="module" src="./three/scene.ts"></script>');
+  fs.writeFileSync(path.join(dir, 'three', 'scene.ts'), `import { WebGLRendererParameters, SRGBColorSpace } from 'three';
+const options: WebGLRendererParameters = {};
+export function createScene() { return { options, colorSpace: SRGBColorSpace }; }`);
+  const typed = await scanPrototype(file);
+  assert.deepEqual(typed.issues.map(({ code, file }) => [code, file]), [['THREE_API', 'three/scene.ts']]);
+  assert.match(typed.issues[0].message, /SRGBColorSpace/u);
+});
+
 test('HTML migration registers a real dual-platform target and rejects an existing ID or incompatible scene', t => {
   const dir = temporaryDirectory(t);
   const prototype = path.join(dir, 'prototype');
@@ -91,4 +134,28 @@ export function createScene() { return { camera, update() {} }; }`);
   assert.match(unbundleable.stderr, /Top-level await/u);
   assert.equal(fs.existsSync(path.join(project, 'src', 'game', 'apps', 'bad-migration-test')), false);
   assert.equal(Object.hasOwn(JSON.parse(fs.readFileSync(targets, 'utf8')), 'bad-migration-test'), false);
+
+  fs.writeFileSync(html, '<button>HUD</button><script type="module">document.querySelector("button");</script>');
+  fs.writeFileSync(config, JSON.stringify({ id: 'draft-test', runtimeResources: 'data' }));
+  const blocked = spawnSync(process.execPath, [...args, '--apply'], options);
+  assert.equal(blocked.status, 1);
+  assert.equal(JSON.parse(blocked.stdout).canApply, false);
+  const draft = JSON.parse(execFileSync(process.execPath, [...args, '--scaffold'], options));
+  assert.equal(draft.canApply, false);
+  assert.equal(draft.scaffold, true);
+  assert.equal(draft.summary.hud.error, 1);
+  assert.equal(draft.target.entry, 'src/game/apps/draft-test/main.ts');
+  const draftApp = path.join(project, 'src', 'game', 'apps', 'draft-test');
+  assert.match(fs.readFileSync(path.join(draftApp, 'three', 'scene.ts'), 'utf8'), /update\(delta: number\)/u);
+  assert.match(fs.readFileSync(path.join(draftApp, 'hud', 'prototypeHud.ts'), 'utf8'), /beginGesture/u);
+  assert.equal(fs.existsSync(path.join(draftApp, 'three', '__html_scene_1.js')), false);
+  assert.equal(fs.readFileSync(path.join(project, 'media', 'draft-test', 'runtime', 'models', 'data.bin'), 'utf8'), 'sample');
+  assert.match(execFileSync(process.execPath, ['scripts/build.cjs', 'draft-test'], options), /dist\/game\.bundle\.js/u);
+  assert.equal(spawnSync(process.execPath, [...args, '--scaffold'], options).status, 1);
+  assert.equal(spawnSync(process.execPath, [...args, '--scaffold', '--apply'], options).status, 1);
+  fs.writeFileSync(config, JSON.stringify({ id: '../outside', runtimeResources: 'missing' }));
+  const invalid = spawnSync(process.execPath, [...args, '--scaffold'], options);
+  assert.equal(invalid.status, 1);
+  assert.equal(JSON.parse(invalid.stdout).summary.config.error, 2);
+  assert.equal(JSON.parse(invalid.stdout).scaffold, undefined);
 });

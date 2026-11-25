@@ -3,6 +3,7 @@ const path = require('node:path');
 const { parseArgs } = require('node:util');
 const { buildSync } = require('esbuild');
 const ts = require('typescript');
+const targetThree = require('three-platformize');
 const { typecheck, entryBuildOptions } = require('./build.cjs');
 
 const root = fs.realpathSync(path.resolve(__dirname, '..'));
@@ -11,6 +12,15 @@ const browserBindings = new Set([
   'document', 'window', 'localStorage', 'sessionStorage', 'XMLHttpRequest', 'fetch',
   'requestAnimationFrame', 'cancelAnimationFrame', 'setAnimationLoop'
 ]);
+const viewportBindings = new Set(['innerWidth', 'innerHeight', 'devicePixelRatio']);
+const inputBindings = new Set(['addEventListener', 'removeEventListener', 'setPointerCapture', 'releasePointerCapture']);
+const domEvents = /^(?:pointer\w+|mouse\w+|touch\w+|key\w+|wheel|click|contextmenu|resize)$/u;
+const issueCategories = {
+  APP_ID: 'config', RENDERER: 'config', ASSET_PATH: 'config',
+  HTML_HUD: 'hud', CSS_LAYOUT: 'hud', HTML_BEHAVIOR: 'hud', PLATFORM_API: 'platform',
+  SCENE_FACTORY: 'scene', RENDERER_OWNER: 'rendering', VIEWPORT_API: 'rendering',
+  INPUT_API: 'input', CANVAS_CREATION: 'texture', THREE_VERSION: 'three', THREE_API: 'three'
+};
 
 function resolvedInside(base, name) {
   if (!name || path.isAbsolute(name) || /[:?#\\]/u.test(name)) throw new Error(`需要本地相对路径，收到 ${name}`);
@@ -44,6 +54,7 @@ async function scanPrototype(entryFile, config = {}) {
   const htmlName = path.basename(input);
   const html = fs.readFileSync(input, 'utf8');
   const issues = [];
+  const rewrites = [];
   const references = [];
   const scripts = [];
   const modules = new Map();
@@ -53,7 +64,7 @@ async function scanPrototype(entryFile, config = {}) {
   const renderer = config.renderer ?? 'webgl1';
 
   function issue(code, message, file = htmlName, line = 1, column = 1, severity = 'error') {
-    issues.push({ severity, code, file, line, column, message });
+    issues.push({ severity, code, category: issueCategories[code] ?? 'module', file, line, column, message });
   }
 
   function inspectMarkup(node, inBody = false) {
@@ -90,14 +101,43 @@ async function scanPrototype(entryFile, config = {}) {
   function scanModule(name, text, location = {}) {
     if (modules.has(name)) return modules.get(name);
     const source = ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true);
+    // 只绑定当前源码中的符号，避免把同名局部变量或对象属性当成浏览器全局变量。
+    const options = { allowJs: true, noLib: true, noResolve: true };
+    const host = { ...ts.createCompilerHost(options), getSourceFile: file => file === name ? source : undefined };
+    const checker = ts.createProgram([name], options, host).getTypeChecker();
     const edits = [];
     const renderers = new Set(['WebGLRenderer', 'WebGL1Renderer']);
+    const threeNamespaces = new Set();
+    const unresolvedThreeImports = new Map();
     const record = { exportsScene: false, text };
     modules.set(name, record);
-    const at = (code, message, offset) => {
+    const sourceLocation = offset => {
       const { line, character } = source.getLineAndCharacterOfPosition(offset);
-      issue(code, message, location.file ?? name, (location.line ?? 1) + line, character + 1 + (line ? 0 : (location.column ?? 0)));
+      return {
+        file: location.file ?? name, line: (location.line ?? 1) + line,
+        column: character + 1 + (line ? 0 : (location.column ?? 0))
+      };
     };
+    const at = (code, message, offset) => {
+      const { file, line, column } = sourceLocation(offset);
+      issue(code, message, file, line, column);
+    };
+    function checkThreeApi(member, offset) {
+      if (Object.hasOwn(targetThree, member)) return;
+      const hint = member === 'SRGBColorSpace' && Object.hasOwn(targetThree, 'sRGBEncoding')
+        ? '请核对颜色贴图的 encoding 和 sRGBEncoding。' : '';
+      at('THREE_API', `本地 Three.js r${targetThree.REVISION} 缺少导出 ${member}。${hint}`, offset);
+    }
+    function rememberNamespace(alias) {
+      if (!alias || !ts.isIdentifier(alias)) return;
+      const symbol = checker.getSymbolAtLocation(alias);
+      if (symbol) threeNamespaces.add(symbol);
+    }
+    function rewriteImport(specifier, replacement) {
+      const start = specifier.getStart(source);
+      edits.push({ start, end: specifier.end, value: JSON.stringify(replacement) });
+      rewrites.push({ ...sourceLocation(start), from: specifier.text, to: replacement });
+    }
     for (const error of source.parseDiagnostics) {
       at('JS_SYNTAX', ts.flattenDiagnosticMessageText(error.messageText, ' '), error.start ?? 0);
     }
@@ -105,8 +145,7 @@ async function scanPrototype(entryFile, config = {}) {
       ts.isFunctionDeclaration(node) && node.name?.text === 'createScene'
       && node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)
       && !node.modifiers.some(modifier => modifier.kind === ts.SyntaxKind.DefaultKeyword));
-    function visit(node) {
-      if (ts.isImportSpecifier(node) && renderers.has(node.propertyName?.text)) renderers.add(node.name.text);
+    function collectImports(node) {
       const specifier = ts.isImportDeclaration(node) || ts.isExportDeclaration(node)
         ? node.moduleSpecifier
         : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword ? node.arguments[0] : undefined;
@@ -116,10 +155,36 @@ async function scanPrototype(entryFile, config = {}) {
           at('DYNAMIC_IMPORT', '需要明确的本地模块路径。', offset);
         } else {
           const value = specifier.text;
-          if (value === 'three' || value.startsWith('three/addons/') || value.startsWith('three/examples/jsm/')) {
-            const replacement = value === 'three' ? 'three-platformize'
-              : value.replace(/^three\/(?:addons\/|examples\/jsm\/)/u, 'three-platformize/examples/jsm/');
-            edits.push({ start: offset, end: specifier.end, value: JSON.stringify(replacement) });
+          const cdnRevision = /^https:\/\/cdn\.jsdelivr\.net\/npm\/three@0\.(\d+)\.\d+\/build\/three\.module\.js$/u.exec(value)?.[1];
+          if (value === 'three' || value === 'three-platformize' || cdnRevision) {
+            if (cdnRevision && cdnRevision !== targetThree.REVISION) {
+              at('THREE_VERSION', `原型使用 Three.js r${cdnRevision}，本地 r${targetThree.REVISION}。请确认 API 和渲染差异后再替换 CDN 导入。`, offset);
+            } else if (value !== 'three-platformize') {
+              rewriteImport(specifier, 'three-platformize');
+            }
+            if (ts.isImportDeclaration(node)) {
+              const bindings = node.importClause?.namedBindings;
+              if (bindings && ts.isNamespaceImport(bindings)) rememberNamespace(bindings.name);
+              if (bindings && ts.isNamedImports(bindings)) {
+                for (const item of bindings.elements) {
+                  const member = (item.propertyName ?? item.name).text;
+                  if (!item.isTypeOnly && !node.importClause.isTypeOnly && !Object.hasOwn(targetThree, member)) {
+                    const symbol = checker.getSymbolAtLocation(item.name);
+                    if (source.scriptKind === ts.ScriptKind.TS && symbol) {
+                      unresolvedThreeImports.set(symbol, { member, offset: item.getStart(source) });
+                    } else {
+                      checkThreeApi(member, item.getStart(source));
+                    }
+                  }
+                  if (renderers.has(member)) renderers.add(item.name.text);
+                }
+              }
+            } else if (ts.isCallExpression(node)) {
+              const declaration = ts.isAwaitExpression(node.parent) ? node.parent.parent : node.parent;
+              if (ts.isVariableDeclaration(declaration)) rememberNamespace(declaration.name);
+            }
+          } else if (value.startsWith('three/addons/') || value.startsWith('three/examples/jsm/')) {
+            rewriteImport(specifier, value.replace(/^three\/(?:addons\/|examples\/jsm\/)/u, 'three-platformize/examples/jsm/'));
           } else if (value.startsWith('./') || value.startsWith('../')) {
             try {
               const dependency = modulePath(directory, value, name);
@@ -132,8 +197,42 @@ async function scanPrototype(entryFile, config = {}) {
           }
         }
       }
-      if (ts.isIdentifier(node) && browserBindings.has(node.text)) {
-        at('PLATFORM_API', `${node.text} 需要改用框架提供的渲染、输入或资源接口。`, node.getStart(source));
+      ts.forEachChild(node, collectImports);
+    }
+    collectImports(source);
+    function visit(node) {
+      if (ts.isPropertyAccessExpression(node) && threeNamespaces.has(checker.getSymbolAtLocation(node.expression))) {
+        checkThreeApi(node.name.text, node.name.getStart(source));
+      }
+      if (ts.isIdentifier(node)) {
+        const { parent, text: binding } = node;
+        const property = ts.isPropertyAccessExpression(parent) && parent.name === node;
+        const symbol = checker.getSymbolAtLocation(node);
+        const unmapped = unresolvedThreeImports.get(symbol);
+        if (unmapped && !ts.isImportSpecifier(parent) && !ts.isPartOfTypeNode(node)) {
+          checkThreeApi(unmapped.member, unmapped.offset);
+          unresolvedThreeImports.delete(symbol);
+        }
+        const global = !property && !symbol;
+        const canvasCreation = binding === 'document' && global && ts.isPropertyAccessExpression(parent)
+          && parent.name.text === 'createElement' && ts.isCallExpression(parent.parent)
+          && parent.parent.expression === parent && ts.isStringLiteralLike(parent.parent.arguments[0] ?? parent)
+          && parent.parent.arguments[0].text === 'canvas';
+        const offset = node.getStart(source);
+        if (canvasCreation) {
+          at('CANVAS_CREATION', '若用于程序贴图，请在场景工厂内使用平台 Canvas 并检查 2D 绘制。', offset);
+        } else if ((global && browserBindings.has(binding)) || (property && binding === 'setAnimationLoop')) {
+          at('PLATFORM_API', `${binding} 需要改用框架提供的渲染、输入或资源接口。`, offset);
+        } else if (global && viewportBindings.has(binding)) {
+          at('VIEWPORT_API', `${binding} 对应 startGame 的视口和 resize 回调。`, offset);
+        } else if ((global || property) && inputBindings.has(binding)) {
+          const call = property ? parent.parent : parent;
+          const isListener = binding === 'addEventListener' || binding === 'removeEventListener';
+          if (ts.isCallExpression(call) && call.expression === (property ? parent : node)
+            && (!property || !isListener || (ts.isStringLiteralLike(call.arguments[0] ?? call) && domEvents.test(call.arguments[0].text)))) {
+            at('INPUT_API', `${binding} 绑定的交互需要接入场景 touch 或 Pixi HUD。`, offset);
+          }
+        }
       }
       if (ts.isNewExpression(node)) {
         const constructor = ts.isPropertyAccessExpression(node.expression) ? node.expression.name : node.expression;
@@ -190,11 +289,11 @@ async function scanPrototype(entryFile, config = {}) {
     }
   }
 
-  return { id, renderer, entry, directory, modules, resources, issues, references };
+  return { id, renderer, entry, directory, modules, resources, issues, references, rewrites };
 }
 
 function appEntry(plan) {
-  const { id, entry, resources } = plan;
+  const { id, entry, resources, scaffold } = plan;
   const hasAssets = Object.keys(resources).length > 0;
   const lines = [
     "import { startGame, type CreateLocalScene } from '../../../framework/runtime/startGame';",
@@ -219,14 +318,46 @@ function appEntry(plan) {
     lines[0] = "import { startGame } from '../../../framework/runtime/startGame';";
   }
   const factory = hasAssets ? '(...args) => createImportedScene(...args, resources)' : 'createScene';
+  const hud = scaffold ? ", async () => (await import('./hud/prototypeHud')).createHud" : '';
   lines.push(
     `void startGame(${factory}, {`,
     `  tag: '[${id}]', hudReadyMessage: 'HUD ready', showHudErrorModal: true`,
-    `}).catch((error: unknown) => reportStartupError('[${id}]', '原型启动失败', error));`,
+    `}${hud}).catch((error: unknown) => reportStartupError('[${id}]', '原型启动失败', error));`,
     ''
   );
   return lines.join('\n');
 }
+
+const scaffoldScene = [
+  "import { BoxGeometry, Mesh, MeshNormalMaterial, PerspectiveCamera, type Scene } from 'three-platformize';",
+  '',
+  'export function createScene(scene: Scene) {',
+  '  const camera = new PerspectiveCamera(45, 1, .1, 100);',
+  '  camera.position.z = 4;',
+  '  const geometry = new BoxGeometry();',
+  '  const material = new MeshNormalMaterial();',
+  '  // 接入原型的模型和材质后，一并在 dispose 释放。',
+  '  const preview = new Mesh(geometry, material);',
+  '  scene.add(preview);',
+  '  return {',
+  '    camera,',
+  '    update(delta: number) { preview.rotation.y += delta; },',
+  '    resize(width: number, height: number) { camera.position.z = Math.max(4, 3 * height / width); },',
+  '    dispose() { scene.remove(preview); geometry.dispose(); material.dispose(); }',
+  '  };',
+  '}',
+  ''
+].join('\n');
+const scaffoldHud = [
+  "import type { CreateHudView } from '../../../../framework/ui/PixiHud';",
+  '',
+  'export const createHud: CreateHudView = (_stage, _width, _height) => ({',
+  '  // 将原型控件装到 stage，在 beginGesture 中返回按钮手势。',
+  '  beginGesture: () => undefined,',
+  '  resize() {}',
+  '});',
+  ''
+].join('\n');
 
 function applyMigration(plan) {
   if (plan.issues.some(({ severity }) => severity === 'error')) throw new Error('请先处理迁移报告中的错误。');
@@ -255,6 +386,10 @@ function applyMigration(plan) {
       const dest = path.join(appStage, 'three', name);
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.writeFileSync(dest, text);
+    }
+    if (plan.scaffold) {
+      fs.mkdirSync(path.join(appStage, 'hud'));
+      fs.writeFileSync(path.join(appStage, 'hud', 'prototypeHud.ts'), scaffoldHud);
     }
     fs.writeFileSync(path.join(appStage, 'main.ts'), appEntry(plan));
     const entry = `src/game/apps/${id}/main.ts`;
@@ -293,21 +428,34 @@ function applyMigration(plan) {
 async function main() {
   const { values, positionals: [file, ...extra] } = parseArgs({
     allowPositionals: true,
-    options: { config: { type: 'string' }, apply: { type: 'boolean' } }
+    options: { config: { type: 'string' }, apply: { type: 'boolean' }, scaffold: { type: 'boolean' } }
   });
-  if (!file || extra.length) throw new Error('用法 npm run migrate:html -- <原型.html> [--config <迁移配置.json>] [--apply]');
+  if (!file || extra.length || (values.apply && values.scaffold)) {
+    throw new Error('用法 npm run migrate:html -- <原型.html> [--config <迁移配置.json>] [--apply | --scaffold]');
+  }
   const config = values.config ? JSON.parse(fs.readFileSync(values.config, 'utf8')) : {};
   if (!config || typeof config !== 'object' || Array.isArray(config)
     || Object.keys(config).some(key => !['id', 'renderer', 'packagedResources', 'runtimeResources'].includes(key))) {
     throw new Error('迁移配置只支持 id、renderer、packagedResources 和 runtimeResources。');
   }
   const plan = await scanPrototype(file, config);
-  const { id, renderer, entry, modules, resources, issues, references } = plan;
+  const { id, renderer, entry, modules, resources, references, issues, rewrites } = plan;
   const canApply = !issues.some(({ severity }) => severity === 'error');
-  const report = { id, renderer, entry, canApply, modules: [...modules.keys()], resources, references, issues };
+  const summary = {};
+  for (const { category, severity } of issues) {
+    summary[category] ??= { error: 0, warning: 0 };
+    summary[category][severity]++;
+  }
+  const report = { id, renderer, entry, canApply, modules: [...modules.keys()], resources, references, summary, rewrites, issues };
   if (values.apply && canApply) report.target = applyMigration(plan);
+  if (values.scaffold && !issues.some(({ category }) => category === 'config')) {
+    report.target = applyMigration({
+      ...plan, scaffold: true, issues: [], entry: 'scene.ts', modules: new Map([['scene.ts', { text: scaffoldScene }]])
+    });
+    report.scaffold = true;
+  }
   console.log(JSON.stringify(report, null, 2));
-  if (!canApply) process.exitCode = 1;
+  if (!canApply && !report.scaffold) process.exitCode = 1;
 }
 
 if (require.main === module) {
